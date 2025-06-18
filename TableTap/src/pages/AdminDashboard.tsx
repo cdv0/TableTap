@@ -15,7 +15,7 @@ const AdminDashboard = () => {
       className="d-flex flex-column"
       style={{ height: "100vh", overflow: "hidden" }}
     >
-      <Navbar heading="Table Tap" />
+      <Navbar heading="Admin" />
       <div className="d-flex flex-grow-1" style={{ height: "100%" }}>
         {/* Left main area */}
         <div
