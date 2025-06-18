@@ -1,20 +1,19 @@
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Login from "./pages/Login";
+import AdminDashboard from "./pages/AdminDashboard";
+import Assets from "./pages/Assets";
 
 function App() {
   const handleSubmit = (value: string) => {
-    console.log('User entered: ', value);
-
+    console.log("User entered: ", value);
   };
 
   return (
     <Router>
-      <Navbar />
       <Routes>
         <Route path="/" element={<Login onSubmit={handleSubmit} />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/assets" element={<Assets />} />
       </Routes>
     </Router>
   );

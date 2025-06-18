@@ -1,0 +1,40 @@
+import ProfileSidebar from "../components/ProfileSidebar";
+import NavCard from "../components/NavCard";
+import Navbar from "../components/Navbar";
+import { useNavigate } from "react-router-dom";
+
+const AdminDashboard = () => {
+  const navigate = useNavigate();
+
+  const navigateToAssets = () => {
+    navigate("/assets");
+  };
+
+  return (
+    <div
+      className="d-flex flex-column"
+      style={{ height: "100vh", overflow: "hidden" }}
+    >
+      <Navbar heading="Table Tap" />
+      <div className="d-flex flex-grow-1" style={{ height: "100%" }}>
+        {/* Left main area */}
+        <div
+          className="flex-grow-1 d-flex justify-content-center align-items-center gap-5 bg-light"
+          style={{ height: "100%" }}
+        >
+          <NavCard label="Tables" color="#32ff7e" icon="icon" />
+          <NavCard
+            label="Assets"
+            color="#ffc75f"
+            icon="icon"
+            onClick={navigateToAssets}
+          />
+        </div>
+        {/* Right area */}
+        <ProfileSidebar />
+      </div>
+    </div>
+  );
+};
+
+export default AdminDashboard;
