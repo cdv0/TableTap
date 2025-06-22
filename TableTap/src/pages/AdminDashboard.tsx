@@ -1,9 +1,12 @@
 import ProfileSidebar from "../components/ProfileSidebar";
 import NavCard from "../components/NavCard";
 import Navbar from "../components/Navbar";
+import Sidebar from "../components/Sidebar";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 const AdminDashboard = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
   const navigateToAssets = () => {
@@ -15,7 +18,8 @@ const AdminDashboard = () => {
       className="d-flex flex-column"
       style={{ height: "100vh", overflow: "hidden" }}
     >
-      <Navbar heading="Admin" />
+      <Navbar heading="Table Tap" onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="d-flex flex-grow-1" style={{ height: "100%" }}>
         {/* Left main area */}
         <div
