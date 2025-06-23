@@ -7,7 +7,10 @@ const Assets = () => {
 
   return (
     <div className="d-flex flex-column" style={{ height: "100vh" }}>
-      <Navbar heading="Table Tap" onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar
+        heading="Table Tap"
+        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+      />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div>

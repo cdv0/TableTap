@@ -64,10 +64,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         </div>
 
         {/* Bottom: Log Out Button */}
-        <button
-          className="btn btn-danger w-100 mt-3"
-          onClick={handleLogout}
-        >
+        <button className="btn btn-danger w-100 mt-3" onClick={handleLogout}>
           Log out
         </button>
       </div>

@@ -18,7 +18,10 @@ const AdminDashboard = () => {
       className="d-flex flex-column"
       style={{ height: "100vh", overflow: "hidden" }}
     >
-      <Navbar heading="Table Tap" onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar
+        heading="Table Tap"
+        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+      />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="d-flex flex-grow-1" style={{ height: "100%" }}>
         {/* Left main area */}

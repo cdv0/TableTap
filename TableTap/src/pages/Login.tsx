@@ -8,7 +8,7 @@ interface LoginProps {
 }
 
 const Login = ({ onSubmit }: LoginProps) => {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = (value: string) => {
@@ -18,7 +18,10 @@ const Login = ({ onSubmit }: LoginProps) => {
 
   return (
     <div className="d-flex flex-column" style={{ height: "100vh" }}>
-      <Navbar heading="Table Tap" onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar
+        heading="Table Tap"
+        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+      />
 
       <div className="flex-grow-1 d-flex justify-content-center bg-light">
         <Keypad initialValue="" onSubmit={handleLogin} />
