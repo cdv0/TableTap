@@ -11,9 +11,11 @@ const Navbar = ({ heading, onToggleSidebar }: Props) => {
   });
 
   return (
-    <nav className="navbar navbar-expand-lg pb-0 pt-0 navbar-dark" style={{ backgroundColor: "#484848" }}>
+    <nav
+      className="navbar navbar-expand-lg pb-0 pt-0 navbar-dark"
+      style={{ backgroundColor: "#484848" }}
+    >
       <div className="container-fluid d-flex justify-content-between align-items-center">
-        
         <div className="d-flex align-items-center">
           <button
             className="btn text-white fs-2 me-2"
