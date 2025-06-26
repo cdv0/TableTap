@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import Navbar from "../components/Navbar";
+import Sidebar from "../components/Sidebar";
 
 const AdminRequests = () => {
   const [requests, setRequests] = useState<any[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -42,28 +45,32 @@ const AdminRequests = () => {
   };
 
   return (
-    <div className="container mt-4">
-      <h2>Pending Requests</h2>
-      {requests.length === 0 && <p>No pending requests.</p>}
-      {requests.map((req) => (
-        <div key={req.employee_id} className="card p-3 mb-3 shadow-sm">
-          <p><strong>{req.name}</strong> — {req.email}</p>
-          <div>
-            <button
-              className="btn btn-success me-2"
-              onClick={() => handleApprove(req.employee_id)}
-            >
-              Approve
-            </button>
-            <button
-              className="btn btn-danger"
-              onClick={() => handleReject(req.employee_id)}
-            >
-              Reject
-            </button>
-          </div>
+    <div>
+        <Navbar heading="Requests" onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}></Navbar>
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)}></Sidebar>
+        <div className="container mt-4">
+        <h2>Pending Requests</h2>
+        {requests.length === 0 && <p>No pending requests.</p>}
+        {requests.map((req) => (
+            <div key={req.employee_id} className="card p-3 mb-3 shadow-sm">
+            <p><strong>{req.name}</strong> — {req.email}</p>
+            <div>
+                <button
+                className="btn btn-success me-2"
+                onClick={() => handleApprove(req.employee_id)}
+                >
+                Approve
+                </button>
+                <button
+                className="btn btn-danger"
+                onClick={() => handleReject(req.employee_id)}
+                >
+                Reject
+                </button>
+            </div>
+            </div>
+        ))}
         </div>
-      ))}
     </div>
   );
 };
