@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import Navbar from "../components/Navbar";
+import { nanoid } from "nanoid";
+
 
 const Signup = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orgs, setOrgs] = useState<any[]>([]);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [name, setName] = useState("");
   const [orgId, setOrgId] = useState("");
 
@@ -22,17 +24,71 @@ const Signup = () => {
 
   // handle signup from input data
   const handleSignup = async () => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (!name){
+        alert("Missing Name")
+        return;
+    }
+    
+    else if (!email){
+        alert("Missing Email")
+        return;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+        alert("Please enter a valid email")
+        return;
+    }
 
-    if (error) return alert(error.message);
+    else if (!pin) {
+      alert("Missing PIN");
+      return;
+    } else if (!/^\d{6}$/.test(pin)) {
+        alert("PIN must be exactly 6 digits");
+        return;
+    }
 
-    const user = data.user;
+    else if (!orgId){
+        alert("Please choose an Organization")
+        return;
+    }
+
+    const result = await supabase.auth.signUp({ email, password: pin });
+
+    if (result.error) return alert(result.error.message);
+
+    const user = result.data.user;
+
+    //  if (!user) {
+    //      alert("Check your email for the confirmation link to complete signup.");
+    //      return;
+    //  }
+
+    const { data: existing, error: checkError } = await supabase.from("employee").select("employee_id").eq("email", email).maybeSingle()
+    if (checkError) {
+        console.error("Check failed:", checkError.message);
+        return alert("Something went wrong checking your data.");
+    }
+
+    if (existing){
+        alert("Email Already Exists")
+        return;
+    }
+
+    const { data: pinExisting, error: pinCheckError } = await supabase.from("employee").select("employee_id").eq("pin", pin).maybeSingle()
+    if (pinCheckError) {
+        console.error("Check failed:", pinCheckError.message);
+        return alert("Something went wrong checking your data.");
+    }
+
+    if (pinExisting){
+        alert("PIN Already Exists")
+        return;
+    }
 
     // insert user into employee table with pending status
     const { error: insertError } = await supabase.from("employee").insert({
         employee_id: user.id,
-        name,
-        email,
+        name: name,
+        email: email,
+        pin: pin,
         role: "employee",
         organization_id: orgId,
         status: "pending",
@@ -67,6 +123,7 @@ const Signup = () => {
                 <label className="form-label">Email</label>
                 <input
                 className="form-control"
+                type="email"
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -74,13 +131,14 @@ const Signup = () => {
             </div>
 
             <div className="mb-3">
-                <label className="form-label">Password</label>
+                <label className="form-label">Choose 6-digit PIN</label>
                 <input
                 className="form-control"
                 type="password"
-                placeholder="Create a password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                inputMode="numeric"
+                placeholder="6-digit PIN"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
                 />
             </div>
 

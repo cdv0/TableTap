@@ -23,13 +23,10 @@ const AdminRequests = () => {
 
   // handle approval button, admin give employee a 4 digit PIN
   const handleApprove = async (id: string) => {
-    const pin = prompt("Assign a 4-digit PIN:");
-    if (!pin || pin.length !== 4) return alert("Invalid PIN");
-
     // update status to approved and pin number in supabase
     const { error } = await supabase
       .from("employee")
-      .update({ status: "approved", pin })
+      .update({ status: "approved"})
       .eq("employee_id", id);
 
     if (!error) fetchRequests();

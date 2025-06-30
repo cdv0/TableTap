@@ -13,6 +13,10 @@ const AdminDashboard = () => {
     navigate("/assets");
   };
 
+  const navigateToTables = () =>{
+    navigate("/tables")
+  }
+
   return (
     <div
       className="d-flex flex-column"
@@ -29,7 +33,11 @@ const AdminDashboard = () => {
           className="flex-grow-1 d-flex justify-content-center align-items-center gap-5 bg-light"
           style={{ height: "100%" }}
         >
-          <NavCard label="Tables" color="#32ff7e" icon="icon" />
+          <NavCard 
+            label="Tables" 
+            color="#32ff7e" 
+            icon="icon"
+            onClick={navigateToTables} />
           <NavCard
             label="Assets"
             color="#ffc75f"

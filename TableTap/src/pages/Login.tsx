@@ -9,16 +9,32 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleLogin = async (pin: string) => {
+    if (!/^\d{6}$/.test(pin)) {
+      alert("PIN must be exactly 6 digits");
+      return;
+    }
+
     // query the employee table for a matching PIN and approved status
     const { data, error } = await supabase
       .from("employee")
       .select("*")
-      .eq("pin", pin)
       .eq("status", "approved")
+      .eq("pin", pin)
       .single();
 
     if (error || !data) {
       alert("Invalid PIN or not yet approved.");
+      return;
+    }
+
+    // signing in with supabase auth
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: pin,
+    });
+
+    if (authError) {
+      alert("Login failed: " + authError.message);
       return;
     }
 

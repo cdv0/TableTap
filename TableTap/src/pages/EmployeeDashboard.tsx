@@ -3,11 +3,18 @@ import NavCard from "../components/NavCard";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const EmployeeDashboard = () => {
 
   //opens sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const navigate = useNavigate()
+
+  const navigateToTables = () => {
+    navigate("/tables")
+  }
 
   return (
     <div
@@ -25,7 +32,11 @@ const EmployeeDashboard = () => {
           className="flex-grow-1 d-flex justify-content-center align-items-center gap-5 bg-light"
           style={{ height: "100%" }}
         >
-          <NavCard label="Tables" color="#32ff7e" icon="icon" />
+          <NavCard 
+            label="Tables" 
+            color="#32ff7e" 
+            icon="icon"
+            onClick={navigateToTables} />
         </div>
         {/* Right area */}
         <ProfileSidebar />

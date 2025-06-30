@@ -5,16 +5,30 @@ import { supabase } from "../supabaseClient";
 const CreateOrg = () => {
   const [orgName, setOrgName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
   const [adminName, setAdminName] = useState("");
   const [pin, setPin] = useState("");
   const navigate = useNavigate();
 
   const handleCreateOrg = async () => {
+    if (!orgName || !adminName || !adminEmail || !pin) {
+      alert("All fields are required");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(pin)) {
+      alert("PIN must be exactly 6 digits");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
+      alert("Invalid email format");
+      return;
+    }
+
     // sign up the user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: adminEmail,
-      password: adminPassword,
+      password: pin,
     });
 
     // failed message
@@ -90,21 +104,16 @@ const CreateOrg = () => {
       <input
         className="form-control mb-2"
         placeholder="Admin Email"
+        type="Email"
         value={adminEmail}
         onChange={(e) => setAdminEmail(e.target.value)}
       />
       <input
-        className="form-control mb-2"
-        type="password"
-        placeholder="Admin Password"
-        value={adminPassword}
-        onChange={(e) => setAdminPassword(e.target.value)}
-      />
-      <input
         className="form-control mb-3"
-        type="text"
-        maxLength={4}
-        placeholder="4-digit PIN"
+        type="password"
+        maxLength={6}
+        inputMode="numeric"
+        placeholder="6-digit PIN"
         value={pin}
         onChange={(e) => setPin(e.target.value)}
       />
