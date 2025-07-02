@@ -1,5 +1,5 @@
-import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
+import Navbar from "../components/global/Navbar";
+import Sidebar from "../components/global/Sidebar";
 import { useState } from "react";
 
 const Assets = () => {

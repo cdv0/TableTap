@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import Keypad from "../components/Keypad";
-import Navbar from "../components/Navbar";
+import Keypad from "../components/login/Keypad";
+import Navbar from "../components/global/Navbar";
 
 interface LoginProps {
   onSubmit: (value: string) => void;

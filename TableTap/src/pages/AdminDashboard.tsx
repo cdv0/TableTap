@@ -1,7 +1,7 @@
-import ProfileSidebar from "../components/ProfileSidebar";
-import NavCard from "../components/NavCard";
-import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
+import ProfileSidebar from "../components/landing/ProfileSidebar";
+import NavCard from "../components/landing/NavCard";
+import Navbar from "../components/global/Navbar";
+import Sidebar from "../components/global/Sidebar";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
