@@ -1,7 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { useState } from "react";
-import Keypad from "../components/Keypad";
-import Navbar from "../components/Navbar";
+import Keypad from "../components/features/employee/login/Keypad";
+import Navbar from "../components/features/employee/global/Navbar";
 import { supabase } from "../supabaseClient";
 
 const Login = () => {

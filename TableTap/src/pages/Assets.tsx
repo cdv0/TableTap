@@ -1,8 +1,8 @@
 import { useState } from "react";
-import Navbar from "../components/Navbar";
-import AssetNavigationSidebar from "../components/AssetNavigationSidebar"
-import OverlaySidebarShell from "../components/OverlaySidebarShell"
-import Sidebar from "../components/Sidebar";
+import Navbar from "../components/features/employee/global/Navbar";
+import AssetNavigationSidebar from "../components/AssetNavigationSidebar";
+import OverlaySidebarShell from "../components/OverlaySidebarShell";
+import Sidebar from "../components/features/employee/global/Sidebar";
 
 const Assets = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -17,23 +17,30 @@ const Assets = () => {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="d-flex flex-row flex-grow-1 overflow-hidden">
-        <AssetNavigationSidebar/>
+        <AssetNavigationSidebar />
 
         <div>
           <h1>Assets</h1>
           {/*TEST SIDEBAR OVERLAY*/}
-          <button onClick={() => setShowOverlaySidebar(true)}>Open sidebar</button>
+          <button onClick={() => setShowOverlaySidebar(true)}>
+            Open sidebar
+          </button>
         </div>
-
       </div>
 
       {/* TEST: Overlay Sidebar*/}
-      {showOverlaySidebar &&
-        <OverlaySidebarShell title="Menu item" group="Add modifier group" onClose={() => {setShowOverlaySidebar(false)}} onSave={() => {}}>
+      {showOverlaySidebar && (
+        <OverlaySidebarShell
+          title="Menu item"
+          group="Add modifier group"
+          onClose={() => {
+            setShowOverlaySidebar(false);
+          }}
+          onSave={() => {}}
+        >
           <p>Test</p>
         </OverlaySidebarShell>
-      }
-
+      )}
     </div>
   );
 };

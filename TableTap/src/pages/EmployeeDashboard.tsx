@@ -1,20 +1,19 @@
-import ProfileSidebar from "../components/ProfileSidebar";
-import NavCard from "../components/NavCard";
-import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
+import ProfileSidebar from "../components/features/employee/landing/ProfileSidebar";
+import NavCard from "../components/features/employee/landing/NavCard";
+import Navbar from "../components/features/employee/global/Navbar";
+import Sidebar from "../components/features/employee/global/Sidebar";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const EmployeeDashboard = () => {
-
   //opens sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const navigateToTables = () => {
-    navigate("/tables")
-  }
+    navigate("/tables");
+  };
 
   return (
     <div
@@ -32,11 +31,12 @@ const EmployeeDashboard = () => {
           className="flex-grow-1 d-flex justify-content-center align-items-center gap-5 bg-light"
           style={{ height: "100%" }}
         >
-          <NavCard 
-            label="Tables" 
-            color="#32ff7e" 
+          <NavCard
+            label="Tables"
+            color="#32ff7e"
             icon="icon"
-            onClick={navigateToTables} />
+            onClick={navigateToTables}
+          />
         </div>
         {/* Right area */}
         <ProfileSidebar />
