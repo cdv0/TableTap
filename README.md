@@ -7,3 +7,5 @@ npm install react-router-dom
 npm install @supabase/supabase-js
 
 npm install nanoid
+
+npm install react-icons --save
