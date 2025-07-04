@@ -57,7 +57,7 @@ const Assets = () => {
             {renderContent()}
 
             {/*TEST Overlay Sidebar*/}
-            <div className="p-4">
+            <div className="p-4 flex-grow-1" style={{ overflowY: "auto"}}>
               <button onClick={() => setOverlaySidebarOpen(true)}></button>
               <OverlaySidebarShell title="modifier" isOpen={overlaySidebarOpen} onClose={() => setOverlaySidebarOpen(false)}
                 onSave={(title) => console.log("Saved:", title)}>
