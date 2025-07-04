@@ -4,6 +4,7 @@ import Sidebar from "../components/features/employee/global/Sidebar";
 import OverlaySidebarShell from "../components/features/employee/assets/OverlaySidebar/OverlaySidebarShell";
 import ListGroup from "../components/features/employee/assets/ListGroup";
 import AssetNavigationSidebar from "../components/features/employee/assets/AssetNavigationSidebar";
+import Dropdown from "../components/features/employee/assets/Dropdown/Dropdown";
 
 interface AssetSectionSidebar{
   title: string;
@@ -61,6 +62,12 @@ const Assets = () => {
               <OverlaySidebarShell title="modifier" isOpen={overlaySidebarOpen} onClose={() => setOverlaySidebarOpen(false)}
                 onSave={(title) => console.log("Saved:", title)}>
                 <ListGroup items={["Beef", "Chicken", "Etc."]} title="Modifier"></ListGroup>
+
+                <Dropdown title="Select modifier" 
+                items={["Beef", "Chicken", "Test"]}
+                onSelect={(item) => {
+                  console.log("Dropdown selected:", item)
+                }}></Dropdown>
               </OverlaySidebarShell>
             </div>
           </div>
