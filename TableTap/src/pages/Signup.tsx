@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import Navbar from "../components/features/employee/global/Navbar";
+import { useNavigate } from "react-router-dom";
 
 const Signup = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -19,6 +20,12 @@ const Signup = () => {
     };
     fetchOrgs();
   }, []);
+
+  const navigate = useNavigate();
+
+  const navigateLogin = () => {
+    navigate("/");
+  };
 
   // handle signup from input data
   const handleSignup = async () => {
@@ -108,7 +115,7 @@ const Signup = () => {
         heading="Employee SignUp"
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       ></Navbar>
-      <div className="container mt-5 d-flex justify-content-center">
+      <div className="container mt-5 d-flex flex-column justify-content-center align-items-center">
         <div
           className="card p-4 shadow"
           style={{ maxWidth: "500px", width: "100%" }}
@@ -168,6 +175,20 @@ const Signup = () => {
             Request Access
           </button>
         </div>
+        <button
+          onClick={navigateLogin}
+          className="btn btn-outline-secondary mt-3"
+          style={{
+            borderRadius: "20px",
+            padding: "8px 24px",
+            fontSize: "14px",
+            fontWeight: "500",
+            transition: "all 0.3s ease",
+            textDecoration: "none",
+          }}
+        >
+          ← Back
+        </button>
       </div>
     </div>
   );
