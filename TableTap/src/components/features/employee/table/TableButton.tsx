@@ -9,20 +9,13 @@ function TableButton({ number, selected, onClick }: Props) {
     <div>
       <button
         onClick={onClick}
-        className="
-          btn
-          fw-semibold
-          shadow-sm
-          d-flex
-          align-items-center
-          justify-content-center
-        "
         style={{
           backgroundColor: selected ? "#ffff88" : "white",
-          border: "1px solid #000",
-          width: "80px",
-          height: "80px",
-          margin: "5px",
+          border: "1px solid rgb(92, 92, 92)",
+          width: "100px",
+          height: "50px",
+          fontSize: "25px",
+          fontWeight: "semi-bold",
         }}
       >
         {number}

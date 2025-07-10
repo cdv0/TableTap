@@ -13,14 +13,27 @@ function Tables() {
   ];
 
   return (
-    <div>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        overflow: "hidden",
+      }}
+    >
       <Navbar
         heading="Tables"
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div style={{ display: "flex" }}>
+      <div
+        style={{
+          display: "flex",
+          flex: 1,
+          overflow: "hidden",
+        }}
+      >
         <TableGrid
           tables={tables}
           selectedTable={selectedTable ?? undefined}

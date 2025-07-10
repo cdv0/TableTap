@@ -4,15 +4,17 @@ function TableSidebar() {
   return (
     <div
       style={{
-        width: "300px",
-        padding: "10px",
+        width: "30%",
+        padding: "10px 20px",
         background: "#f5f5f5",
+        overflowY: "auto",
       }}
     >
-      <h3>Pending Orders</h3>
+      <div style={{ fontSize: "32px", fontWeight: 700, paddingBottom: "10px" }}>
+        Pending Orders
+      </div>
       <OrderCard tableNumber={1} />
       <OrderCard tableNumber={3} />
-      <OrderCard tableNumber={5} />
     </div>
   );
 }

@@ -10,11 +10,15 @@ function TableGrid({ tables, onTableClick, selectedTable }: Props) {
   return (
     <div
       style={{
-        display: "flex",
-        flexWrap: "wrap",
-        width: "400px",
-        background: "gray",
-        padding: "10px",
+        width: "70%",
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))",
+        gridAutoRows: "50px",
+        placeContent: "center",
+        justifyItems: "center",
+        background: "#878787",
+        padding: "100px",
+        gap: "50px",
       }}
     >
       {tables.map((num) => (
