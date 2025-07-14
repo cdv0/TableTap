@@ -9,7 +9,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSave: (title: string) => void;
-  title: "modifier" | "item" | "substitution";
+  title: "modifier" | "item" | "substitution" | "category";
 }
 
 const OverlaySidebarShell = ({ title, isOpen, onClose, children, onSave }: Props) => {
