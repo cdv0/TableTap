@@ -7,6 +7,7 @@ import AdminRequests from "./pages/AdminRequests";
 import CreateOrg from "./pages/CreateOrg";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import Tables from "./pages/Tables";
+import Orders from "./pages/Orders";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/admin-dashboard/requests" element={<AdminRequests />} />
         <Route path="/assets" element={<Assets />} />
         <Route path="/tables" element={<Tables />} />
+        <Route path="/tables/orders" element={<Orders />} />
       </Routes>
     </Router>
   );
