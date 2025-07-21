@@ -1,0 +1,12 @@
+.OrderButton {
+    padding: 18px 60px;
+    background: transparent;
+    border: none;
+    border-bottom: 4px solid var(--order-btn-color, #e63946);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.OrderButton:hover {
+    background: rgba(88, 88, 88, 0.1);
+}
