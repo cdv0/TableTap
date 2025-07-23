@@ -1,0 +1,55 @@
+.OverlayBackground {
+    background-color: rgba(0, 0, 0, 0.3);
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    cursor: pointer;
+    z-index: 0;
+}
+
+.OverlayContainer {
+    background-color: white;
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 99999;
+    padding: 30px;
+    width: 45vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.contentOverlaySidebarShell {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.headerTopBar, .footerOverlaySidebarShell {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.buttonX {
+    border: none;
+    background-color: transparent;
+    border-radius: 50%;
+    padding: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.headerOverlaySidebarShell {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.buttonSave {
+    font-weight: 600;
+}

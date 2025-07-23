@@ -1,7 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
 import { useState } from "react";
-import Keypad from "../components/Keypad";
-import Navbar from "../components/Navbar";
+import Keypad from "../components/features/employee/login/Keypad";
+import Navbar from "../components/features/employee/global/Navbar";
 import { supabase } from "../supabaseClient";
 
 const Login = () => {
@@ -57,9 +57,23 @@ const Login = () => {
         <Keypad initialValue="" onSubmit={handleLogin} />
       </div>
 
-      <p className="mt-3 text-center">
-        Don't have an account? <Link to="/signup">Sign up here</Link>
-      </p>
+      <div className="text-center pb-4 bg-light">
+        <Link
+          to="/signup"
+          className="btn btn-outline-primary "
+          style={{
+            borderRadius: "25px",
+            padding: "10px 32px",
+            fontSize: "16px",
+            fontWeight: "500",
+            textDecoration: "none",
+            transition: "all 0.3s ease",
+            border: "2px solid #0d6efd",
+          }}
+        >
+          Create Account
+        </Link>
+      </div>
     </div>
   );
 };
