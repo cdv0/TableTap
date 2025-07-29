@@ -124,7 +124,8 @@ const Assets = () => {
       {/* TEMPORARY: Replace with database data */}
       {/* Indiviidual Category Top Bar */}
       {sampleCategoryData.map((group, index) => (
-        <div className="mb-4" key={index}>
+        <div className="mb-4" key={index} id={group.title.replace(/\s+(.)/g, (_, c) => c.toUpperCase()).replace(/^\w/, c => c.toLowerCase())}
+>
           <div className="d-flex justify-content-between align-items-center border-bottom pb-1 mb-2">
             <h4 className="m-0">{group.title}</h4>
             <div>
@@ -230,8 +231,8 @@ const Assets = () => {
       )}
 
       {/* Modifier Group Top Bar*/}
-      <div className="d-flex justify-content-between align-items-center border-bottom pb-1 mb-2">
-        <h5 className="m-0">Example Group</h5>
+      <div className="d-flex justify-content-between align-items-center border-bottom pb-1 mb-2" id="other">
+        <h5 className="m-0">Other</h5>
         <div>
           <button className="btn btn-sm border-0 me-2">
             <GoPencil style={{ fontSize: "18px" }} />
@@ -290,14 +291,44 @@ const Assets = () => {
           className="border-end p-3"
           style={{ width: "280px", overflowY: "auto" }}
         >
-        
-        {/* TODO: Implement Asset Nav Bar */}
+          <div className="d-flex flex-column">
+            {/* Categories Nav Section */}
+            <a href="#categories" className="fw-semibold fs-4 text-dark text-decoration-none">Categories</a>
+
+            {/* TODO: Temporary data. Replace with database data. */}
+            <ul className="list-unstyled ms-3 mt-2">
+              <li className="mb-2">
+                <a href="#pho" className="text-dark text-decoration-none">Pho</a>
+              </li>
+
+              <li>
+                <a href="#appetizer" className="text-dark text-decoration-none">Appetizer</a>
+              </li>
+            </ul>
+
+            {/* Modifier Groups Nav Section */}
+            <a href="#modifierGroups" className="fw-semibold fs-4 text-dark text-decoration-none">Modifier Groups</a>
+
+            {/* TODO: Temporary data. Replace with database data. */}
+            <ul className="list-unstyled ms-3 mt-2">
+              <li className="mb-2">
+                <a href="#other" className="text-dark text-decoration-none">Other</a>
+              </li>
+            </ul>
+          </div>
         </div>
 
         {/* Right Side Content */}
         <div className="flex-grow-1 p-4" style={{ overflowY: "auto" }}>
-          {renderCategories()}
-          {renderModifiers()}
+          {/* Categories */}
+          <div id="categories">
+            {renderCategories()}
+          </div>
+
+          {/* Modifier Groups */}
+          <div id="modifierGroups">
+            {renderModifiers()}
+          </div>
         </div>
       </div>
     </div>
