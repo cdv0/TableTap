@@ -21,7 +21,7 @@ function App() {
         <Route path="/admin-dashboard/requests" element={<AdminRequests />} />
         <Route path="/assets" element={<Assets />} />
         <Route path="/tables" element={<Tables />} />
-        <Route path="/tables/orders" element={<Orders />} />
+        <Route path="/tables/:tableId/orders" element={<Orders />} />
       </Routes>
     </Router>
   );

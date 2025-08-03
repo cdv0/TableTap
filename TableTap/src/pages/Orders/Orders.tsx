@@ -1,8 +1,10 @@
-import { useState } from "react";
 import CategoryNavButton from "../../components/features/employee/order/CategoryNavButton";
 import Navbar from "../../components/features/employee/global/Navbar";
 import Sidebar from "../../components/features/employee/global/Sidebar";
 import { IoTrashOutline } from "react-icons/io5";
+import { useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 interface MenuItem {
   title: string;
@@ -16,10 +18,30 @@ interface CartItem extends MenuItem {
 }
 
 function Orders() {
+  const navigate = useNavigate();
+
+  const navigateBack = () => {
+    navigate("/tables");
+  };
+
+  const { tableId } = useParams<{ tableId: string }>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState("");
+
+  // load saved cart
+  const storageKey = `order_table_${tableId}`;
+
+  useEffect(() => {
+    if (!tableId) return;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        setCart(JSON.parse(saved));
+      } catch {}
+    }
+  }, [tableId]);
 
   // hardcoded data
   //TODO implement backend fetch requests to get categories
@@ -49,6 +71,16 @@ function Orders() {
   ];
 
   // -----cart maniputlation functions-----
+
+  // save cart (save button)
+  const handleSave = () => {
+    if (!tableId) return;
+    localStorage.setItem(storageKey, JSON.stringify(cart));
+    window.dispatchEvent(
+      new CustomEvent("order-saved", { detail: { tableId } })
+    );
+    navigate("/tables");
+  };
 
   //add an item to the cart
   const addItemToCart = (item: MenuItem) => {
@@ -113,7 +145,7 @@ function Orders() {
           }}
         >
           <div>
-            <h1>Table 1</h1>
+            <h1>Table {tableId} </h1>
             <hr />
 
             {/* List of cart items */}
@@ -177,6 +209,7 @@ function Orders() {
                 borderRadius: "50px",
                 background: "rgba(223, 223, 223, 1)",
               }}
+              onClick={handleSave}
             >
               Save
             </button>
@@ -188,6 +221,7 @@ function Orders() {
                 borderRadius: "50px",
                 background: "rgba(223, 223, 223, 1)",
               }}
+              onClick={navigateBack}
             >
               Back
             </button>
