@@ -1,65 +1,86 @@
 import { useState } from "react";
 import Navbar from "../components/features/employee/global/Navbar";
 import Sidebar from "../components/features/employee/global/Sidebar";
-import OverlaySidebarShell from "../components/features/employee/assets/OverlaySidebar/AddItemSidebar";
 import { GoPencil } from "react-icons/go";
 import { FaPlus } from "react-icons/fa6";
 import { IoTrashOutline, IoClose, IoCheckmark } from "react-icons/io5";
 import AddItemSidebar from "../components/features/employee/assets/OverlaySidebar/AddItemSidebar";
-
-{ /* TEST DATA for Categories */ }
-const sampleCategoryData = [
-  {
-    title: "Pho",
-    items: [
-      {
-        name: "1. Happy Pho Special",
-        description:
-          "Served with Rare Steak, Brisket, Tendon, Tripe, and Meatball",
-      },
-      {
-        name: "2. Rare Steak Beef, Brisket, and Tripe",
-        description: "Served with Rare Steak, Brisket, and Tripe",
-      },
-    ],
-  },
-  {
-    title: "Appetizer",
-    items: [
-      {
-        name: "Sampler Roll",
-        description:
-          "Served with 2 Egg rolls, 2 Shrimp rolls, and 2 Spring rolls",
-      },
-      {
-        name: "Vietnamese Grilled Pork Sausage",
-        description: "Served with 2 Grilled Pork Sausage spring rolls",
-      },
-    ],
-  },
-  {
-    title: "Vermicelli",
-    items: [
-      {
-        name: "Vermicelli Soup",
-        description: "Served with either Chicken or Shrimp",
-      },
-      {
-        name: "Vermicelli Bowl",
-        description:
-          "Served with a choice of 1 item. Comes with an egg roll, shredded lettuce, carrots, cucumbers, crushed peanuts, and a side of fish sauce",
-      },
-    ],
-  },
-];
+import { supabase } from "../supabaseClient";
+import { useEffect } from "react";
 
 const Assets = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [overlaySidebarOpen, setOverlaySidebarOpen] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isAddingModifierGroup, setisAddingModifierGroup] = useState(false);
+  const [newCategory, setNewCategory] = useState("");  // Temporarily store the draft input new category value
+  const [categories, setCategories] = useState<any[]>([]);  // The array of all category objects from Supabase categories table
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
 
-  {/* Event handlers */}
+  {/* Event Handlers */}
+
+  {/* Fetch the organization id */}
+  useEffect(() => {
+    const fetchOrgId = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        console.error("No logged-in user.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("employee")
+        .select("organization_id")
+        .eq("employee_id", user.id)
+        .single();  // Expect only one row back
+
+      if (error) {
+        console.error("Error fetching organization ID:", error.message);
+      } else {
+        setOrganizationId(data.organization_id);
+      }
+    };
+
+    fetchOrgId();
+  }, []);
+
+  {/* Fetch all of the organization's categories */}
+  const fetchCategories = async () => {
+    const { data, error } = await supabase.from("categories").select("*");
+    if (!error) { // If no error occurred then continue
+      setCategories(data);
+    } else {
+      console.error("Failed to fetch categories:", error.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  {/* Handle Add Category */}
+  const handleAddCategory = async (name: string, organizationId: string) => {
+    const { data, error } = await supabase
+      .from("categories")
+      // Supabase automatically fills out the other fields e..g category_id and created_at
+      .insert([
+        {
+          name: name,
+          organization_id: organizationId,
+        },
+      ]);
+
+    if (error) {
+      console.error("Error adding category:", error.message);
+    } else {
+      console.log("Category added:", data);
+      fetchCategories(); // Refetch after adding
+      setNewCategory("");
+      setIsAddingCategory(false);
+    }
+  };
 
   {/* Category section renderer */}
   const renderCategories = () => (
@@ -88,6 +109,8 @@ const Assets = () => {
               className="form-control"
               id="floatingInput"
               placeholder="Add category"
+              value={newCategory}
+              onChange={(e)=> setNewCategory(e.target.value)}
             />
             <label htmlFor="floatingInput">Add category</label>
           </div>
@@ -110,21 +133,26 @@ const Assets = () => {
               type="submit"
               id="SubmitNewCategory"
             >
-              <IoCheckmark
-                style={{ color: "rgba(29, 114, 26, 1)", fontSize: "24px" }}
-              />
+          <IoCheckmark
+            style={{ color: "rgba(29, 114, 26, 1)", fontSize: "24px" }}
+            onClick={() => {
+              if (!organizationId) {
+                alert("Organization ID not loaded yet");
+                return;
+              }
+              handleAddCategory(newCategory, organizationId);
+            }}
+          />
             </button>
           </div>
         </div>
       )}
 
-      {/* TEMPORARY: Replace with database data */}
       {/* Indiviidual Category Top Bar */}
-      {sampleCategoryData.map((group, index) => (
-        <div className="mb-4" key={index} id={group.title.replace(/\s+(.)/g, (_, c) => c.toUpperCase()).replace(/^\w/, c => c.toLowerCase())}
->
+      {categories.map((group, index) => (
+        <div className="mb-4" key={index} id={group.name.toLowerCase().replace(/\s+/g, "")}>
           <div className="d-flex justify-content-between align-items-center border-bottom pb-1 mb-2">
-            <h4 className="m-0">{group.title}</h4>
+            <h4 className="m-0">{group.name}</h4>
             <div>
               <button className="btn btn-sm border-0 me-2">
                 <GoPencil style={{ fontSize: "18px" }} />
@@ -144,7 +172,7 @@ const Assets = () => {
           </div>
 
           {/* Indiviidual Category List Item */}
-          {group.items.map((item, itemIndex) => (
+          {/* {group.items.map((item, itemIndex) => (
             <div
               key={itemIndex}
               className="d-flex justify-content-between align-items-start border rounded px-3 py-2 mb-2"
@@ -164,7 +192,7 @@ const Assets = () => {
 
               </div>
             </div>
-          ))}
+          ))} */}
         </div>
       ))}
     </>
@@ -289,15 +317,17 @@ const Assets = () => {
             {/* Categories Nav Section */}
             <a href="#categories" className="fw-semibold fs-4 text-dark text-decoration-none">Categories</a>
 
-            {/* TODO: Temporary data. Replace with database data. */}
             <ul className="list-unstyled ms-3 mt-2">
-              <li className="mb-2">
-                <a href="#pho" className="text-dark text-decoration-none">Pho</a>
-              </li>
-
-              <li>
-                <a href="#appetizer" className="text-dark text-decoration-none">Appetizer</a>
-              </li>
+              {categories.map((c) => (
+                <li key={c.category_id} className="mb-2">
+                  <a
+                    href={`#${c.name.toLowerCase().replace(/\s+/g, "")}`}
+                    className="text-dark text-decoration-none"
+                  >
+                    {c.name}
+                  </a>
+                </li>
+              ))}
             </ul>
 
             {/* Modifier Groups Nav Section */}
