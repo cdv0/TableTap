@@ -1,10 +1,11 @@
 import { useState } from "react";
 import Navbar from "../components/features/employee/global/Navbar";
 import Sidebar from "../components/features/employee/global/Sidebar";
-import OverlaySidebarShell from "../components/features/employee/assets/OverlaySidebar/OverlaySidebarShell";
+import OverlaySidebarShell from "../components/features/employee/assets/OverlaySidebar/AddItemSidebar";
 import { GoPencil } from "react-icons/go";
 import { FaPlus } from "react-icons/fa6";
 import { IoTrashOutline, IoClose, IoCheckmark } from "react-icons/io5";
+import AddItemSidebar from "../components/features/employee/assets/OverlaySidebar/AddItemSidebar";
 
 { /* TEST DATA for Categories */ }
 const sampleCategoryData = [
@@ -55,10 +56,6 @@ const sampleCategoryData = [
 const Assets = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [overlaySidebarOpen, setOverlaySidebarOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<string | null>(null);
-  const [selectedPage, setSelectedPage] = useState<
-    "Categories" | "Modifier groups" | "Substitution" | "All modifier items"
-  >("Categories");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [isAddingModifierGroup, setisAddingModifierGroup] = useState(false);
 
@@ -137,7 +134,10 @@ const Assets = () => {
                 <IoTrashOutline style={{ fontSize: "18px" }} />
               </button>
 
-              <button className="btn btn-sm border-0">
+              <button 
+              className="btn btn-sm border-0"
+              onClick={() => setOverlaySidebarOpen(true)}
+              >
                 <FaPlus style={{ fontSize: "18px" }} />
               </button>
             </div>
@@ -162,9 +162,6 @@ const Assets = () => {
                   <GoPencil style={{ fontSize: "16px" }} />
                 </button>
 
-                <button className="btn btn-sm mt-1 border-0">
-                  <IoTrashOutline style={{ fontSize: "16px" }} />
-                </button>
               </div>
             </div>
           ))}
@@ -262,9 +259,6 @@ const Assets = () => {
             <GoPencil style={{ fontSize: "16px" }} />
           </button>
 
-          <button className="btn btn-sm mt-1 border-0">
-            <IoTrashOutline style={{ fontSize: "16px" }} />
-          </button>
         </div>
       </div>
     </div>
@@ -329,6 +323,13 @@ const Assets = () => {
           <div id="modifierGroups">
             {renderModifiers()}
           </div>
+
+          {/* Close overlay sidebar when it's open */}
+          { overlaySidebarOpen && (
+            <AddItemSidebar onClose={() => setOverlaySidebarOpen(false)}>
+
+            </AddItemSidebar>
+          )}
         </div>
       </div>
     </div>
