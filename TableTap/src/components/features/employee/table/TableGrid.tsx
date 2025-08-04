@@ -3,10 +3,11 @@ import TableButton from "./TableButton";
 interface Props {
   tables: number[];
   onTableClick: (number: number) => void;
+  highlightedTables?: number[]; // added
   selectedTable?: number;
 }
 
-function TableGrid({ tables, onTableClick, selectedTable }: Props) {
+function TableGrid({ tables, onTableClick, highlightedTables = [] }: Props) {
   return (
     <div
       style={{
@@ -21,14 +22,17 @@ function TableGrid({ tables, onTableClick, selectedTable }: Props) {
         gap: "50px",
       }}
     >
-      {tables.map((num) => (
-        <TableButton
-          key={num}
-          number={num}
-          selected={num === selectedTable}
-          onClick={() => onTableClick(num)}
-        />
-      ))}
+      {tables.map((num) => {
+        const hasSavedOrder = highlightedTables.includes(num);
+        return (
+          <TableButton
+            key={num}
+            number={num}
+            hasSavedOrder={hasSavedOrder} // indicate highlight
+            onClick={() => onTableClick(num)}
+          />
+        );
+      })}
     </div>
   );
 }
