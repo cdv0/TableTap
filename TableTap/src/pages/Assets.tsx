@@ -3,24 +3,36 @@ import Navbar from "../components/features/employee/global/Navbar";
 import Sidebar from "../components/features/employee/global/Sidebar";
 import { GoPencil } from "react-icons/go";
 import { FaPlus } from "react-icons/fa6";
-import { IoTrashOutline, IoClose, IoCheckmark } from "react-icons/io5";
+import { IoTrashOutline } from "react-icons/io5";
+import { IoClose, IoCheckmark } from "react-icons/io5";
 import AddItemSidebar from "../components/features/employee/assets/OverlaySidebar/AddItemSidebar";
 import { supabase } from "../supabaseClient";
 import { useEffect } from "react";
 
 const Assets = () => {
+  //Left sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Right sidebar state
   const [overlaySidebarOpen, setOverlaySidebarOpen] = useState(false);
+
+  // Fetch data from Supabase
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+
+  // Category States
+    // Add Category
   const [isAddingCategory, setIsAddingCategory] = useState(false);
-  const [isAddingModifierGroup, setisAddingModifierGroup] = useState(false);
   const [newCategory, setNewCategory] = useState("");  // Temporarily store the draft input new category value
   const [categories, setCategories] = useState<any[]>([]);  // The array of all category objects from Supabase categories table
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
+    // Delete Category (and all category items)
+  const [deleteCategoryIds, setDeleteCategoryIds] = useState<string | null>(null);
+
+  // Modifier Group States
+  const [isAddingModifierGroup, setisAddingModifierGroup] = useState(false);
   const [newModifierGroup, setNewModifierGroup] = useState("");  // Temporarily store the draft input new modifier group value
   const [modifierGroups, setModifierGroups] = useState<any[]>([]);  // The array of all modifier groups from Supabase
 
   // Event Handlers
-
   // Fetch the organization id
   useEffect(() => {
     const fetchOrgId = async () => {
@@ -50,17 +62,15 @@ const Assets = () => {
 
   // Fetch all of the organization's categories
   const fetchCategories = async () => {
-    const { data, error } = await supabase.from("categories").select("*");
-    if (!error) { // If no error occurred then continue
-      setCategories(data);
-    } else {
-      console.error("Failed to fetch categories:", error.message);
-    }
+    if (!organizationId) return;
+    const { data, error } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("organization_id", organizationId);
+    if (!error) setCategories(data ?? []);
   };
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  useEffect(() => { fetchCategories(); }, [organizationId]);
 
   // Handle Add Category
   const handleAddCategory = async (name: string, organizationId: string) => {
@@ -84,41 +94,81 @@ const Assets = () => {
     }
   };
 
-    // Fetch all of the organization's modifier groups
-    const fetchModifierGroups = async () => {
-      const { data, error } = await supabase.from("modifier_groups").select("*");
-      if (!error) { // If no error occurred then continue
-        setModifierGroups(data);
-      } else {
-        console.error("Failed to fetch modifier groups:", error.message);
-      }
-    };
+  // Handle Delete Categories and Category items (children first, then parent)
+  const handleDeleteCategoryAndItems = async (categoryId: string) => {
+    if (!organizationId) {
+      console.error("Delete category: No organization ID detected.");
+      return;
+    }
 
-    useEffect(() => {
-      fetchModifierGroups();
-    }, []);
+    setDeleteCategoryIds(categoryId);
 
-    // Handle Add Category
-    const handleAddModifierGroup = async (name: string, organizationId: string) => {
-      const { data, error } = await supabase
-        .from("modifier_groups")
-        // Supabase automatically fills out the other fields e..g category_id and created_at
-        .insert([
-          {
-            name: name,
-            organization_id: organizationId,
-          },
-        ]);
+    try {
+      // Delete menu items first (child table)
+      const { error: itemsError } = await supabase
+        .from("menu_items")
+        .delete()
+        .eq("category_id", categoryId)
+        .eq("organization_id", organizationId);
 
-      if (error) {
-        console.error("Error adding modifier group:", error.message);
-      } else {
-        console.log("Modifier group added:", data);
-        fetchModifierGroups(); // Refetch after adding
-        setNewModifierGroup("");
-        setisAddingModifierGroup(false);
-      }
-    };
+      if (itemsError) throw itemsError;
+
+      // Delete the category (parent)
+      const { error: catError } = await supabase
+        .from("categories")
+        .delete()
+        .eq("category_id", categoryId)
+        .eq("organization_id", organizationId);
+
+      if (catError) throw catError;
+
+      await fetchCategories();
+    } catch (err: any) {
+      console.error(err?.message || err);
+    } finally {
+      setDeleteCategoryIds(null);
+    }
+  };
+
+  // Fetch all of the organization's modifier groups (scoped by org)
+  const fetchModifierGroups = async () => {
+    if (!organizationId) return;
+    const { data, error } = await supabase
+      .from("modifier_group")
+      .select("*")
+      .eq("organization_id", organizationId);
+    if (!error) {
+      setModifierGroups(data ?? []);
+    } else {
+      console.error("Failed to fetch modifier groups:", error.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchModifierGroups();
+  }, [organizationId]);
+
+  // Handle Add Category
+  const handleAddModifierGroup = async (name: string, organizationId: string) => {
+    const { data, error } = await supabase
+      .from("modifier_group")
+      // Supabase automatically fills out the other fields e..g category_id and created_at
+      .insert([
+        {
+          name: name,
+          organization_id: organizationId,
+        },
+      ]);
+
+    if (error) {
+      console.error("Error adding modifier group:", error.message);
+    } else {
+      console.log("Modifier group added:", data);
+      fetchModifierGroups(); // Refetch after adding
+      setNewModifierGroup("");
+      setisAddingModifierGroup(false);
+    }
+  };
 
   // Category section renderer
   const renderCategories = () => (
@@ -172,7 +222,7 @@ const Assets = () => {
               id="SubmitNewCategory"
               onClick={() => {
                 if (!organizationId) {
-                  alert("Organization ID not loaded yet");
+                  console.error("Organization ID not loaded yet");
                   return;
                 }
                 handleAddCategory(newCategory, organizationId);
@@ -187,8 +237,8 @@ const Assets = () => {
       )}
 
       {/* Indiviidual Category Top Bar */}
-      {categories.map((group, index) => (
-        <div className="mb-4" key={index} id={group.name.toLowerCase().replace(/\s+/g, "")}>
+      {categories.map((group) => (
+        <div className="mb-4" key={group.category_id} id={group.name.toLowerCase().replace(/\s+/g, "")}>
           <div className="d-flex justify-content-between align-items-center border-bottom pb-1 mb-2">
             <h4 className="m-0">{group.name}</h4>
             <div>
@@ -196,8 +246,13 @@ const Assets = () => {
                 <GoPencil style={{ fontSize: "18px" }} />
               </button>
 
-              <button className="btn btn-sm border-0 me-2">
-                <IoTrashOutline style={{ fontSize: "18px" }} />
+              <button
+                className="btn btn-sm border-0 me-2"
+                onClick={() => handleDeleteCategoryAndItems(group.category_id)}
+                disabled={deleteCategoryIds === group.category_id}
+                title="Delete category"
+              >
+                <IoTrashOutline style={{ fontSize: "18px", opacity: deleteCategoryIds === group.category_id ? 0.5 : 1 }} />
               </button>
 
               <button 
@@ -288,7 +343,7 @@ const Assets = () => {
               id="SubmitNewModifierGroup"
               onClick={() => {
                 if (!organizationId) {
-                  alert("Organization ID not loaded yet");
+                  console.error("Organization ID not loaded yet");
                   return;
                 }
                 handleAddModifierGroup(newModifierGroup, organizationId);
