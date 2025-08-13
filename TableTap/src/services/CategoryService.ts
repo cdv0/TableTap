@@ -45,6 +45,7 @@ const CategoryService = () => {
     if (error) throw new Error(error.message);
     return data
   }
+  
   // update: update a category
   const update = async (categoryId: string, changes: Partial<Pick<Category, "name">>): Promise<Category> => {
     const {data, error} = await supabase

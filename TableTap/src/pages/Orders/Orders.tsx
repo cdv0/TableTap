@@ -4,7 +4,8 @@ import Sidebar from "../../components/features/employee/global/Sidebar";
 import { IoTrashOutline } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
+import { supabase } from "../../supabaseClient";
 
 interface MenuItem {
   title: string;
@@ -12,27 +13,43 @@ interface MenuItem {
   category: string;
 }
 
-// adds the number count for the item
 interface CartItem extends MenuItem {
   count: number;
 }
 
 function Orders() {
+  // Navigation
   const navigate = useNavigate();
-
   const navigateBack = () => {
     navigate("/tables");
   };
 
-  const { tableId } = useParams<{ tableId: string }>();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [search, setSearch] = useState("");
-
-  // load saved cart
+  const params = useParams();
+  const tableId = params.tableId!;
   const storageKey = `order_table_${tableId}`;
 
+  // UI
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [search, setSearch] = useState("");
+
+  // CART
+  const [cart, setCart] = useState<CartItem[]>([]);
+
+  // CATEGORIES
+  const [rawCats, setRawCats] = useState<any[]>([]);
+  const [categories, setCategories] = useState<
+    { title: string; color: string }[]
+  >([]);
+  const [catsLoading, setCatsLoading] = useState(false);
+  const [catsError, setCatsError] = useState<string | null>(null);
+
+  // ITEMS
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const [itemsError, setItemsError] = useState<string | null>(null);
+
+  // Load cart from LocalStorage
   useEffect(() => {
     if (!tableId) return;
     const saved = localStorage.getItem(storageKey);
@@ -43,32 +60,65 @@ function Orders() {
     }
   }, [tableId]);
 
-  // hardcoded data
-  //TODO implement backend fetch requests to get categories
-  const categories = [
-    { title: "All", color: "gray" },
-    { title: "Pho", color: "red" },
-    { title: "Appetizer", color: "orange" },
-    { title: "Vermicelli", color: "yellow" },
-    { title: "Pad Thai", color: "green" },
-    { title: "Rice Plates", color: "teal" },
-    { title: "Fried Rice", color: "blue" },
-    { title: "Stir Fry", color: "purple" },
-    { title: "Soups", color: "indigo" },
-    { title: "Drinks", color: "pink" },
-    { title: "Extras", color: "brown" },
-  ];
+  // Fetch categories
+  useEffect(() => {
+    const fetchCats = async () => {
+      setCatsLoading(true);
+      const { data, error } = await supabase
+        .from("categories")
+        .select("name")
+        .order("name", { ascending: true });
+      if (error) setCatsError(error.message);
+      else if (data) setRawCats(data);
+      setCatsLoading(false);
+    };
+    fetchCats();
+  }, []);
 
-  //hardcoded data
-  //TODO implement backend fetch requests to get menu items
-  const items = [
-    { title: "Happy Pho Special 1", color: "red", category: "Pho" },
-    { title: "Happy Pho Special 2", color: "red", category: "Pho" },
-    { title: "Happy Pho Special 3", color: "red", category: "Pho" },
-    { title: "Egg Rolls", color: "orange", category: "Appetizer" },
-    { title: "Chicken Pad Thai", color: "green", category: "Pad Thai" },
-    { title: "Vermicelli", color: "yellow", category: "Vermicelli" },
-  ];
+  // Map [{title,color}]
+  useEffect(() => {
+    const mapped = rawCats.map((r) => ({
+      title: r.name,
+      color: "gray",
+    }));
+    setCategories([{ title: "All", color: "gray" }, ...mapped]);
+  }, [rawCats]);
+
+  // Fetch menu items
+  useEffect(() => {
+    const fetchItems = async () => {
+      setItemsLoading(true);
+      const { data, error } = await supabase
+        .from("menu_items")
+        .select(
+          `
+        item_id,
+        name,
+        price,
+        category_id,
+        categories ( name )
+      `
+        )
+        .eq("status", "serving")
+        .order("name", { ascending: true });
+
+      if (error) {
+        setItemsError(error.message);
+      } else if (data) {
+        setItems(
+          data.map((row: any) => ({
+            title: row.name,
+            color: "gray",
+            category: row.categories.name,
+          }))
+        );
+      }
+
+      setItemsLoading(false);
+    };
+
+    fetchItems();
+  }, []);
 
   // -----cart maniputlation functions-----
 
@@ -114,11 +164,13 @@ function Orders() {
   };
 
   // search bar filter function
-  const searchItems = items
-    .filter(
-      (item) => selectedCategory === "All" || item.category === selectedCategory
-    )
-    .filter((item) => item.title.toLowerCase().includes(search.toLowerCase()));
+  const searchItems = useMemo(() => {
+    return items
+      .filter(
+        (it) => selectedCategory === "All" || it.category === selectedCategory
+      )
+      .filter((it) => it.title.toLowerCase().includes(search.toLowerCase()));
+  }, [items, selectedCategory, search]);
 
   return (
     <div className="d-flex flex-column" style={{ height: "100vh" }}>
@@ -129,11 +181,8 @@ function Orders() {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main horizontal layout: left cart, category sidebar, main items */}
-      <div
-        className="d-flex flex-grow-1 overflow-hidden"
-        style={{ height: "100%" }}
-      >
-        {/* Left panel: the current table's order (cart) */}
+      <div className="d-flex flex-grow-1 overflow-hidden">
+        {/* Left panel: CART */}
         <div
           className="border-end p-3 d-flex flex-column justify-content-between"
           style={{
@@ -228,7 +277,7 @@ function Orders() {
           </div>
         </div>
 
-        {/* Middle sidebar: category filter buttons */}
+        {/* Middle sidebar: CATEGORIES */}
         <div
           className="border-end p-3 d-flex flex-column justify-content-between"
           style={{
@@ -256,33 +305,33 @@ function Orders() {
         </div>
 
         {/* Right/main area: search + items to add */}
-        <div className="flex-grow-1 p-4" style={{ overflowY: "auto" }}>
-          {/* Search input */}
-          <div className="mb-3">
-            <input
-              placeholder="Search"
-              className="form-control"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)} // update search state
-            />
-          </div>
+        <div className="flex-grow-1 p-3 overflow-auto">
+          <input
+            type="text"
+            placeholder="Search…"
+            className="form-control mb-3"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
 
-          {/* Grid / list of available items after filtering */}
-          <div className="d-flex flex-wrap gap-3">
-            {searchItems.map((item) => (
-              <CategoryNavButton
-                key={item.title}
-                text={item.title}
-                color={item.color}
-                onClick={() => addItemToCart(item)} // add item to cart when clicked
-              />
-            ))}
-
-            {/* Shown if no items pass the filters */}
-            {searchItems.length === 0 && (
-              <div className="text-muted">No items match filter</div>
-            )}
-          </div>
+          {itemsLoading ? (
+            <p>Loading items…</p>
+          ) : itemsError ? (
+            <p className="text-danger">Error: {itemsError}</p>
+          ) : searchItems.length === 0 ? (
+            <p className="text-muted">No items match filter</p>
+          ) : (
+            <div className="d-flex flex-wrap gap-2">
+              {searchItems.map((item) => (
+                <CategoryNavButton
+                  key={item.title}
+                  text={item.title}
+                  color={item.color}
+                  onClick={() => addItemToCart(item)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
