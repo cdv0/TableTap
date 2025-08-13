@@ -28,9 +28,12 @@ const Assets = () => {
   const [deleteCategoryIds, setDeleteCategoryIds] = useState<string | null>(null);
 
   // Modifier Group States
+    // Add modifier group
   const [isAddingModifierGroup, setisAddingModifierGroup] = useState(false);
   const [newModifierGroup, setNewModifierGroup] = useState("");  // Temporarily store the draft input new modifier group value
   const [modifierGroups, setModifierGroups] = useState<any[]>([]);  // The array of all modifier groups from Supabase
+    // Delete modifier groups (and all modifiers)
+  const [deleteModifierGroupIds, setDeleteModifierGroupIds] = useState<string | null>(null);
 
   // Event Handlers
   // Fetch the organization id
@@ -147,6 +150,41 @@ const Assets = () => {
   useEffect(() => {
     fetchModifierGroups();
   }, [organizationId]);
+
+  // Handle Delete Categories and Category items (children first, then parent)
+  const handleDeleteModifierGroupsAndModifers = async (modifierGroupId: string) => {
+    if (!organizationId) {
+      console.error("Delete modifier group: No organization ID detected.");
+      return;
+    }
+
+    setDeleteModifierGroupIds(modifierGroupId);
+
+    try {
+      // Delete modifiers first (child table)
+      const { error: itemsError } = await supabase
+        .from("modifier")
+        .delete()
+        .eq("modifier_group_id", modifierGroupId)
+
+      if (itemsError) throw itemsError;
+
+      // Delete the category (parent)
+      const { error: modifierError } = await supabase
+        .from("modifier_group")
+        .delete()
+        .eq("modifier_group_id", modifierGroupId)
+        .eq("organization_id", organizationId);
+
+      if (modifierError) throw modifierError;
+
+      await fetchModifierGroups();
+    } catch (err: any) {
+      console.error(err?.message || err);
+    } finally {
+      setDeleteModifierGroupIds(null);
+    }
+  };
 
   // Handle Add Category
   const handleAddModifierGroup = async (name: string, organizationId: string) => {
@@ -367,8 +405,18 @@ const Assets = () => {
               <GoPencil style={{ fontSize: "18px" }} />
             </button>
 
-            <button className="btn btn-sm border-0 me-2">
-              <IoTrashOutline style={{ fontSize: "18px" }} />
+            <button
+              className="btn btn-sm border-0 me-2"
+              onClick={() => handleDeleteModifierGroupsAndModifers(group.modifier_group_id)}
+              disabled={deleteModifierGroupIds === group.modifier_group_id}
+              title="Delete modifier group"
+            >
+              <IoTrashOutline
+                style={{
+                  fontSize: "18px",
+                  opacity: deleteModifierGroupIds === group.modifier_group_id ? 0.5 : 1,
+                }}
+              />
             </button>
 
             <button className="btn btn-sm border-0">
