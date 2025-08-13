@@ -39,6 +39,10 @@ const Assets = () => {
   // Delete modifier groups (and all modifiers)
   const [deleteModifierGroupIds, setDeleteModifierGroupIds] = useState<string | null>(null);
 
+  // Inline edit: modifier groups
+  const [editingModifierGroupId, setEditingModifierGroupId] = useState<string | null>(null);
+  const [editModifierGroupName, setEditModifierGroupName] = useState("");
+
   // Event Handlers
   // Fetch the organization id
   useEffect(() => {
@@ -133,7 +137,7 @@ const Assets = () => {
     }
   };
 
-  // Edit Category Title Event Handlers
+  // Inline edit handlers: Categories
   const startEditCategory = (cat: any) => {
     setEditingCategoryId(cat.category_id);
     setEditCategoryName(cat.name ?? "");
@@ -225,6 +229,32 @@ const Assets = () => {
     }
   };
 
+  // Edit Modifier Groups
+  const startEditModifierGroup = (group: any) => {
+    setEditingModifierGroupId(group.modifier_group_id);
+    setEditModifierGroupName(group.name ?? "");
+  };
+
+  const cancelEditModifierGroup = () => {
+    setEditingModifierGroupId(null);
+    setEditModifierGroupName("");
+  };
+
+  const saveEditModifierGroup = async () => {
+    if (!organizationId || !editingModifierGroupId) return;
+    const { error } = await supabase
+      .from("modifier_group")
+      .update({ name: editModifierGroupName })
+      .eq("modifier_group_id", editingModifierGroupId)
+      .eq("organization_id", organizationId);
+    if (error) {
+      console.error("Update modifier group failed:", error.message);
+      return;
+    }
+    await fetchModifierGroups();
+    cancelEditModifierGroup();
+  };
+
   // Category section renderer
   const renderCategories = () => (
     <>
@@ -281,7 +311,7 @@ const Assets = () => {
         <div className="mb-4" key={group.category_id} id={group.name.toLowerCase().replace(/\s+/g, "")}>
           <div className="d-flex justify-content-between align-items-center border-bottom pb-1 mb-2">
             {editingCategoryId === group.category_id ? (
-              // Edit Category Title
+              // --- EDITING MODE ---
               <div className="d-flex align-items-center w-100 gap-2">
                 <div className="form-floating flex-grow-1">
                   <input
@@ -304,7 +334,7 @@ const Assets = () => {
                 </button>
               </div>
             ) : (
-              // Exit Category Title Edit Mode
+              // --- VIEW MODE ---
               <>
                 <h4 className="m-0">{group.name}</h4>
                 <div>
@@ -388,30 +418,58 @@ const Assets = () => {
       {modifierGroups.map((group, index) => (
         <div key={index} className="mb-4" id={group.name.toLowerCase().replace(/\s+/g, "")}>
           <div className="d-flex justify-content-between align-items-center border-bottom pb-1 mb-2">
-            <h5 className="m-0">{group.name}</h5>
-            <div>
-              <button className="btn btn-sm border-0 me-2">
-                <GoPencil style={{ fontSize: "18px" }} />
-              </button>
+            {editingModifierGroupId === group.modifier_group_id ? (
+              // --- EDITING MODE ---
+              <div className="d-flex align-items-center w-100 gap-2">
+                <div className="form-floating flex-grow-1">
+                  <input
+                    type="text"
+                    className="form-control"
+                    id={`editModGroup-${group.modifier_group_id}`}
+                    placeholder="Edit modifier group"
+                    value={editModifierGroupName}
+                    onChange={(e) => setEditModifierGroupName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && saveEditModifierGroup()}
+                  />
+                  <label htmlFor={`editModGroup-${group.modifier_group_id}`}>Edit modifier group</label>
+                </div>
 
-              <button
-                className="btn btn-sm border-0 me-2"
-                onClick={() => handleDeleteModifierGroupsAndModifers(group.modifier_group_id)}
-                disabled={deleteModifierGroupIds === group.modifier_group_id}
-                title="Delete modifier group"
-              >
-                <IoTrashOutline
-                  style={{
-                    fontSize: "18px",
-                    opacity: deleteModifierGroupIds === group.modifier_group_id ? 0.5 : 1,
-                  }}
-                />
-              </button>
+                <button className="btn border-0 bg-transparent" onClick={cancelEditModifierGroup} title="Cancel">
+                  <IoClose style={{ color: "rgba(153, 35, 35, 1)", fontSize: "24px" }} />
+                </button>
+                <button className="btn border-0 bg-transparent" onClick={saveEditModifierGroup} title="Save">
+                  <IoCheckmark style={{ color: "rgba(29, 114, 26, 1)", fontSize: "24px" }} />
+                </button>
+              </div>
+            ) : (
+              // --- VIEW MODE ---
+              <>
+                <h5 className="m-0">{group.name}</h5>
+                <div>
+                  <button className="btn btn-sm border-0 me-2" onClick={() => startEditModifierGroup(group)} title="Edit modifier group">
+                    <GoPencil style={{ fontSize: "18px" }} />
+                  </button>
 
-              <button className="btn btn-sm border-0">
-                <FaPlus style={{ fontSize: "18px" }} />
-              </button>
-            </div>
+                  <button
+                    className="btn btn-sm border-0 me-2"
+                    onClick={() => handleDeleteModifierGroupsAndModifers(group.modifier_group_id)}
+                    disabled={deleteModifierGroupIds === group.modifier_group_id}
+                    title="Delete modifier group"
+                  >
+                    <IoTrashOutline
+                      style={{
+                        fontSize: "18px",
+                        opacity: deleteModifierGroupIds === group.modifier_group_id ? 0.5 : 1,
+                      }}
+                    />
+                  </button>
+
+                  <button className="btn btn-sm border-0">
+                    <FaPlus style={{ fontSize: "18px" }} />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       ))}
