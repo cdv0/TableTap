@@ -1,338 +1,146 @@
-import CategoryNavButton from "../../components/features/employee/order/CategoryNavButton";
+import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "../../supabaseClient";
 import Navbar from "../../components/features/employee/global/Navbar";
 import Sidebar from "../../components/features/employee/global/Sidebar";
-import { IoTrashOutline } from "react-icons/io5";
-import { useNavigate } from "react-router-dom";
-import { useParams } from "react-router-dom";
-import { useMemo, useEffect, useState } from "react";
-import { supabase } from "../../supabaseClient";
-
-interface MenuItem {
-  title: string;
-  color: string;
-  category: string;
-}
-
-interface CartItem extends MenuItem {
-  count: number;
-}
+import CartPanel from "../../components/features/employee/order/CartPanel";
+import CategoriesPanel from "../../components/features/employee/order/CategoriesPanel";
+import MenuItemsPanel from "../../components/features/employee/order/MenuItemsPanel";
+import { useTableNumber } from "../../hooks/useTableNumber";
+import { useCategories } from "../../hooks/useCategories";
+import { useMenuItems } from "../../hooks/useMenuItems";
+import { useOrderItems } from "../../hooks/useOrderItems";
+import { addItemToCart } from "../../utils/cartUtils";
+import "./Orders.css"; // Import CSS file
 
 function Orders() {
   // Navigation
   const navigate = useNavigate();
+  const { tableId } = useParams<{ tableId: string }>();
   const navigateBack = () => {
+    setCart([]); // Clear cart on back navigation
     navigate("/tables");
   };
 
-  const params = useParams();
-  const tableId = params.tableId!;
-  const storageKey = `order_table_${tableId}`;
-
-  // UI
+  // UI State
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [search, setSearch] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  // CART
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Hooks for Data Fetching
+  const tableNumber = useTableNumber(tableId);
+  const { categories, catsLoading, catsError } = useCategories();
+  const { items, itemsLoading, itemsError } = useMenuItems();
+  const { cart, setCart } = useOrderItems(tableId, setSaveError);
 
-  // CATEGORIES
-  const [rawCats, setRawCats] = useState<any[]>([]);
-  const [categories, setCategories] = useState<
-    { title: string; color: string }[]
-  >([]);
-  const [catsLoading, setCatsLoading] = useState(false);
-  const [catsError, setCatsError] = useState<string | null>(null);
+  // Save Order Handler
+  const handleSave = async () => {
+    if (!tableId || cart.length === 0) return;
 
-  // ITEMS
-  const [items, setItems] = useState<MenuItem[]>([]);
-  const [itemsLoading, setItemsLoading] = useState(false);
-  const [itemsError, setItemsError] = useState<string | null>(null);
+    setSaving(true);
+    setSaveError(null);
 
-  // Load cart from LocalStorage
-  useEffect(() => {
-    if (!tableId) return;
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        setCart(JSON.parse(saved));
-      } catch {}
-    }
-  }, [tableId]);
-
-  // Fetch categories
-  useEffect(() => {
-    const fetchCats = async () => {
-      setCatsLoading(true);
-      const { data, error } = await supabase
-        .from("categories")
-        .select("name")
-        .order("name", { ascending: true });
-      if (error) setCatsError(error.message);
-      else if (data) setRawCats(data);
-      setCatsLoading(false);
-    };
-    fetchCats();
-  }, []);
-
-  // Map [{title,color}]
-  useEffect(() => {
-    const mapped = rawCats.map((r) => ({
-      title: r.name,
-      color: "gray",
-    }));
-    setCategories([{ title: "All", color: "gray" }, ...mapped]);
-  }, [rawCats]);
-
-  // Fetch menu items
-  useEffect(() => {
-    const fetchItems = async () => {
-      setItemsLoading(true);
-      const { data, error } = await supabase
-        .from("menu_items")
-        .select(
-          `
-        item_id,
-        name,
-        price,
-        category_id,
-        categories ( name )
-      `
-        )
-        .eq("status", "serving")
-        .order("name", { ascending: true });
-
-      if (error) {
-        setItemsError(error.message);
-      } else if (data) {
-        setItems(
-          data.map((row: any) => ({
-            title: row.name,
-            color: "gray",
-            category: row.categories.name,
-          }))
+    try {
+      // Validate cart items
+      const invalidItems = cart.filter((item) => !item.item_id || !item.price);
+      if (invalidItems.length > 0) {
+        throw new Error(
+          `Invalid menu items in cart: ${invalidItems
+            .map((i) => i.title)
+            .join(", ")}`
         );
       }
 
-      setItemsLoading(false);
-    };
+      // Check for existing open order
+      const { data: existingOrder, error: orderError } = await supabase
+        .from("customer_orders")
+        .select("order_id")
+        .eq("table_id", tableId)
+        .eq("status", "open")
+        .single();
 
-    fetchItems();
-  }, []);
-
-  // -----cart maniputlation functions-----
-
-  // save cart (save button)
-  const handleSave = () => {
-    if (!tableId) return;
-    localStorage.setItem(storageKey, JSON.stringify(cart));
-    window.dispatchEvent(
-      new CustomEvent("order-saved", { detail: { tableId } })
-    );
-    navigate("/tables");
-  };
-
-  //add an item to the cart
-  const addItemToCart = (item: MenuItem) => {
-    setCart((prev) => {
-      const existing = prev.find((c) => c.title === item.title);
-      if (existing) {
-        //if item is already in cart, increase count by 1
-        return prev.map((c) =>
-          c.title === item.title ? { ...c, count: c.count + 1 } : c
-        );
+      let orderId: string;
+      if (orderError || !existingOrder) {
+        // Create new order if none exists
+        const { data: newOrder, error: newOrderError } = await supabase
+          .from("customer_orders")
+          .insert([{ table_id: tableId, status: "open" }])
+          .select("order_id")
+          .single();
+        if (newOrderError)
+          throw new Error(`Failed to create order: ${newOrderError.message}`);
+        orderId = newOrder.order_id;
       } else {
-        return [...prev, { ...item, count: 1 }];
+        orderId = existingOrder.order_id;
       }
-    });
+
+      // Delete existing order items and insert updated cart
+      await supabase.from("order_items").delete().eq("order_id", orderId);
+      const orderItems = cart.map((item) => ({
+        order_id: orderId,
+        item_id: item.item_id,
+        quantity: item.count, // Use the line's count
+        price_each: item.price,
+        note: item.note || null,
+      }));
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+      if (itemsError)
+        throw new Error(`Failed to save order items: ${itemsError.message}`);
+
+      // Clear cart and navigate back
+      setCart([]);
+      navigate("/tables");
+    } catch (e: any) {
+      setSaveError(e.message);
+      console.error("Error saving order:", e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // change quanitity of a cart item
-  const updateCartCount = (title: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((c) =>
-          c.title === title ? { ...c, count: Math.max(1, c.count + delta) } : c
-        )
-        .filter((c) => c.count > 0)
-    );
-  };
-
-  // remove an item from cart
-  const removeFromCart = (title: string) => {
-    setCart((prev) => prev.filter((c) => c.title !== title));
-  };
-
-  // search bar filter function
-  const searchItems = useMemo(() => {
-    return items
-      .filter(
-        (it) => selectedCategory === "All" || it.category === selectedCategory
-      )
-      .filter((it) => it.title.toLowerCase().includes(search.toLowerCase()));
-  }, [items, selectedCategory, search]);
+  // Render with Error Boundary
+  if (!tableId) {
+    return <div className="orders-container">Invalid table ID</div>; // Fallback for undefined tableId
+  }
 
   return (
-    <div className="d-flex flex-column" style={{ height: "100vh" }}>
+    <div className="orders-container">
       <Navbar
         heading="Table Tap"
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      {/* Main horizontal layout: left cart, category sidebar, main items */}
-      <div className="d-flex flex-grow-1 overflow-hidden">
-        {/* Left panel: CART */}
-        <div
-          className="border-end p-3 d-flex flex-column justify-content-between"
-          style={{
-            width: "30vw",
-            minWidth: "300px",
-            maxWidth: "30vw",
-            overflowY: "auto",
-            flexShrink: 0,
-          }}
-        >
-          <div>
-            <h1>Table {tableId} </h1>
-            <hr />
-
-            {/* List of cart items */}
-            <div className="list-group">
-              {cart.map((ci) => (
-                <div
-                  key={ci.title}
-                  className="list-group-item d-flex justify-content-between align-items-center"
-                  style={{ padding: "0.5rem 0.75rem" }}
-                >
-                  {/* item */}
-                  <div className="d-flex justify-content-between align-items-center w-100 mt-1 mb-1">
-                    <div className="d-flex gap-3">
-                      <small className="text-secondary">{ci.count}</small>
-                      <span style={{ fontWeight: 600 }}>{ci.title}</span>
-                    </div>
-
-                    {/* Buttons to decrement, increment, or remove */}
-                    {/* TESTING FOR NOW, WILL REPLACE WITH EDIT BUTTON */}
-                    <div className="d-flex gap-1">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => updateCartCount(ci.title, -1)}
-                        aria-label={`decrease ${ci.title}`}
-                      >
-                        -
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => updateCartCount(ci.title, +1)}
-                        aria-label={`increase ${ci.title}`}
-                      >
-                        +
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        onClick={() => removeFromCart(ci.title)}
-                        aria-label={`remove ${ci.title}`}
-                      >
-                        <IoTrashOutline
-                          style={{ fontSize: "1rem", color: "#ad2929" }}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Action buttons at bottom of cart */}
-          <div className="d-flex flex-column justify-content-center align-items-center gap-3">
-            <button
-              type="button"
-              className="btn"
-              style={{
-                width: "80%",
-                borderRadius: "50px",
-                background: "rgba(223, 223, 223, 1)",
-              }}
-              onClick={handleSave}
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              className="btn"
-              style={{
-                width: "80%",
-                borderRadius: "50px",
-                background: "rgba(223, 223, 223, 1)",
-              }}
-              onClick={navigateBack}
-            >
-              Back
-            </button>
-          </div>
-        </div>
-
-        {/* Middle sidebar: CATEGORIES */}
-        <div
-          className="border-end p-3 d-flex flex-column justify-content-between"
-          style={{
-            width: "15vw",
-            minWidth: "200px",
-            maxWidth: "15vw",
-            overflowY: "auto",
-            background: "rgba(245, 245, 245, 1)",
-            flexShrink: 0,
-          }}
-        >
-          <div className="d-flex flex-column justify-content-between align-items-center mb-3 gap-2">
-            {categories.map((cat) => (
-              <CategoryNavButton
-                key={cat.title}
-                text={cat.title}
-                color={cat.color}
-                onClick={() => {
-                  setSelectedCategory(cat.title);
-                  setSearch("");
-                }}
-              ></CategoryNavButton>
-            ))}
-          </div>
-        </div>
-
-        {/* Right/main area: search + items to add */}
-        <div className="flex-grow-1 p-3 overflow-auto">
-          <input
-            type="text"
-            placeholder="Search…"
-            className="form-control mb-3"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          {itemsLoading ? (
-            <p>Loading items…</p>
-          ) : itemsError ? (
-            <p className="text-danger">Error: {itemsError}</p>
-          ) : searchItems.length === 0 ? (
-            <p className="text-muted">No items match filter</p>
-          ) : (
-            <div className="d-flex flex-wrap gap-2">
-              {searchItems.map((item) => (
-                <CategoryNavButton
-                  key={item.title}
-                  text={item.title}
-                  color={item.color}
-                  onClick={() => addItemToCart(item)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="main-content">
+        <CartPanel
+          cart={cart}
+          setCart={setCart}
+          tableNumber={tableNumber}
+          saveError={saveError}
+          saving={saving}
+          onSave={handleSave}
+          onBack={navigateBack}
+        />
+        <CategoriesPanel
+          categories={categories}
+          catsLoading={catsLoading}
+          catsError={catsError}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          setSearch={setSearch}
+        />
+        <MenuItemsPanel
+          items={items}
+          itemsLoading={itemsLoading}
+          itemsError={itemsError}
+          search={search}
+          setSearch={setSearch}
+          selectedCategory={selectedCategory}
+          addItemToCart={(item) => addItemToCart(cart, setCart, item)}
+        />
       </div>
     </div>
   );

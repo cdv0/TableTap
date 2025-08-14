@@ -1,16 +1,22 @@
 interface Props {
-  number: number; // table number to display
-  onClick: () => void; // click handler
-  hasSavedOrder?: boolean;
+  number: number;
+  onClick: () => void;
+  isOccupied?: boolean;
+  isSelected?: boolean;
 }
 
-function TableButton({ number, hasSavedOrder, onClick }: Props) {
+function TableButton({
+  number,
+  isOccupied = false,
+  isSelected = false,
+  onClick,
+}: Props) {
   return (
     <div>
       <button
         onClick={onClick}
         style={{
-          backgroundColor: hasSavedOrder ? "#FFFB8E" : "white",
+          backgroundColor: isOccupied ? "#FFFB8E" : "white",
           border: "1px solid rgb(92, 92, 92)",
           width: "100px",
           height: "50px",
