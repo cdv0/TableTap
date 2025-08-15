@@ -14,7 +14,6 @@ function CategoriesPanel({
   categories,
   catsLoading,
   catsError,
-  selectedCategory,
   setSelectedCategory,
   setSearch,
 }: CategoriesPanelProps) {

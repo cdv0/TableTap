@@ -20,7 +20,7 @@ export function useOrderItems(tableId: string | undefined, setSaveError: (error:
       }
       const { data: items, error: itemsError } = await supabase
         .from("order_items")
-        .select("item_id, quantity, price_each, size, note, menu_items ( item_id, name, categories ( name ) )")
+        .select("item_id, quantity, price_each, note, menu_items ( item_id, name, categories ( name ) )")
         .eq("order_id", orders.order_id);
       if (itemsError) {
         setSaveError(`Failed to load order items: ${itemsError.message}`);
@@ -35,7 +35,6 @@ export function useOrderItems(tableId: string | undefined, setSaveError: (error:
             category: row.menu_items.categories.name,
             price: row.price_each,
             count: row.quantity,
-            size: row.size || "regular",
             note: row.note,
           }))
         );

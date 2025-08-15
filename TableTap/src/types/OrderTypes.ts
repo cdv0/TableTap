@@ -4,7 +4,6 @@ export interface MenuItem {
   color: string;
   category: string;
   price: number;
-  size?: string;
   note?: string;
 }
 
@@ -15,7 +14,6 @@ export interface CartItem {
   category: string;
   price: number;
   count: number;
-  size?: string;
   note?: string;
   id?: string;
 }

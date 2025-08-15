@@ -58,7 +58,7 @@ function Orders() {
         .from("customer_orders")
         .select("order_id")
         .eq("table_id", tableId)
-        .eq("status", "open")
+        .eq("status", "closed")
         .single();
 
       let orderId: string;
@@ -66,7 +66,7 @@ function Orders() {
         // Create new order if none exists
         const { data: newOrder, error: newOrderError } = await supabase
           .from("customer_orders")
-          .insert([{ table_id: tableId, status: "open" }])
+          .insert([{ table_id: tableId, status: "preparing" }])
           .select("order_id")
           .single();
         if (newOrderError)
@@ -81,7 +81,7 @@ function Orders() {
       const orderItems = cart.map((item) => ({
         order_id: orderId,
         item_id: item.item_id,
-        quantity: item.count, // Use the line's count
+        quantity: item.count,
         price_each: item.price,
         note: item.note || null,
       }));
