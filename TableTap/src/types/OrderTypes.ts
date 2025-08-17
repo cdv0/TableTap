@@ -10,8 +10,8 @@ export interface MenuItem {
 export interface CartItem {
   item_id: string;
   title: string;
-  color: string;
-  category: string;
+  color?: string;
+  category?: string;
   price: number;
   count: number;
   note?: string;

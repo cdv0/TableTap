@@ -8,16 +8,21 @@ export function useOrderItems(tableId: string | undefined, setSaveError: (error:
   useEffect(() => {
     const fetchExistingOrder = async () => {
       if (!tableId) return;
+      // fetch order from customer order
       const { data: orders, error: orderError } = await supabase
         .from("customer_orders")
         .select("order_id")
         .eq("table_id", tableId)
-        .eq("status", "open")
+        .eq("status", "preparing")
         .single();
+
+      // if no order return empty cart
       if (orderError || !orders) {
         setCart([]); // No open order, start with empty cart
         return;
       }
+
+      // fetch order_items with item_id
       const { data: items, error: itemsError } = await supabase
         .from("order_items")
         .select("item_id, quantity, price_each, note, menu_items ( item_id, name, categories ( name ) )")
@@ -26,6 +31,7 @@ export function useOrderItems(tableId: string | undefined, setSaveError: (error:
         setSaveError(`Failed to load order items: ${itemsError.message}`);
         return;
       }
+      // if there are items, map out the data
       if (items) {
         setCart(
           items.map((row: any) => ({
