@@ -43,6 +43,21 @@ const Assets = () => {
   const [editingModifierGroupId, setEditingModifierGroupId] = useState<string | null>(null);
   const [editModifierGroupName, setEditModifierGroupName] = useState("");
 
+  // Add modifier
+  const [isAddingModifier, setIsAddingModifier] = useState(false);
+  const [newModifier, setNewModifier] = useState("");  // Temporarily store the new modifier input value
+  const [modifierGroupId, setModifierGroupId] = useState<string | null>(null);
+
+  // Store modifiers grouped by modifier_group_id
+  const [modifiersByGroup, setModifiersByGroup] = useState<Record<string, any[]>>({});
+
+  // Edit modifier
+  const [editingModifierId, setEditingModifierId] = useState<string | null>(null);
+  const [editModifierName, setEditModifierName] = useState("");
+
+  // Delete modifier
+  const [deleteModifierId, setDeleteModifierId] = useState<string | null>(null);
+
   // Event Handlers
   // Fetch the organization id
   useEffect(() => {
@@ -137,6 +152,89 @@ const Assets = () => {
     }
   };
 
+  // Fetch modifiers
+  const fetchModifiers = async () => {
+    if (!modifierGroups || modifierGroups.length === 0) {
+      setModifiersByGroup({});
+      return;
+    }
+
+    const groupIds = modifierGroups
+      .map((g) => g.modifier_group_id)
+      .filter(Boolean);
+
+    const { data, error } = await supabase
+      .from("modifier")
+      .select("*")
+      .in("modifier_group_id", groupIds);
+
+    if (error) {
+      console.error("Failed to fetch modifiers:", error.message);
+      return;
+    }
+
+    const grouped: Record<string, any[]> = {};
+    (data ?? []).forEach((m: any) => {
+      const key = m.modifier_group_id;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(m);
+    });
+    setModifiersByGroup(grouped);
+  };
+
+  // Edit modifier handlers
+  const startEditModifier = (mod: any) => {
+    setEditingModifierId(mod.modifier_id);
+    setEditModifierName(mod.name ?? "");
+  };
+
+  const cancelEditModifier = () => {
+    setEditingModifierId(null);
+    setEditModifierName("");
+  };
+
+  const saveEditModifier = async () => {
+    if (!editingModifierId) return;
+
+    const { error } = await supabase
+      .from("modifier")
+      .update({ name: editModifierName })
+      .eq("modifier_id", editingModifierId);
+
+    if (error) {
+      console.error("Update modifier failed:", error.message);
+      return;
+    }
+
+    await fetchModifiers();
+    cancelEditModifier();
+  };
+
+  // Handle delete modifier
+  const handleDeleteModifier = async (modId: string) => {
+    if (!modId) {
+      console.error("Delete modifier: No modifier ID detected.");
+      return;
+    }
+
+    setDeleteModifierId(modId);
+
+    try {
+      const { error: modError } = await supabase
+        .from("modifier")
+        .delete()
+        .eq("modifier_id", modId);
+
+      if (modError) throw modError;
+
+      await fetchModifiers();
+    } catch (err: any) {
+      console.error(err?.message || err);
+    } finally {
+      setDeleteModifierId(null);
+    }
+  };
+
   // Inline edit handlers: Categories
   const startEditCategory = (cat: any) => {
     setEditingCategoryId(cat.category_id);
@@ -178,6 +276,15 @@ const Assets = () => {
     fetchModifierGroups();
   }, [organizationId]);
 
+  // Whenever modifierGroups change, (re)load their modifiers
+  useEffect(() => {
+    if (modifierGroups && modifierGroups.length > 0) {
+      fetchModifiers();
+    } else {
+      setModifiersByGroup({});
+    }
+  }, [modifierGroups]);
+
   // Handle Delete Modifier Groups and Modifiers (children first, then parent)
   const handleDeleteModifierGroupsAndModifers = async (modifierGroupId: string) => {
     if (!organizationId) {
@@ -203,10 +310,35 @@ const Assets = () => {
       if (modifierError) throw modifierError;
 
       await fetchModifierGroups();
+      // fetchModifiers will run via the effect above when groups update
     } catch (err: any) {
       console.error(err?.message || err);
     } finally {
       setDeleteModifierGroupIds(null);
+    }
+  };
+
+  // Handle Add Modifier (submit)
+  const handleAddModifier = async (name: string, mGroupId: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    const { error } = await supabase.from("modifier").insert([
+      {
+        name: trimmed,
+        modifier_group_id: mGroupId,
+      },
+    ]);
+
+    if (error) {
+      console.error("Error adding modifier:", error.message);
+    } else {
+      // refresh modifiers for all groups so the UI re-renders the new one
+      await fetchModifiers();
+
+      setNewModifier("");
+      setIsAddingModifier(false);
+      setModifierGroupId(null);
     }
   };
 
@@ -278,6 +410,7 @@ const Assets = () => {
               placeholder="Add category"
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
+              autoFocus
             />
             <label htmlFor="floatingInput">Add category</label>
           </div>
@@ -322,6 +455,7 @@ const Assets = () => {
                     value={editCategoryName}
                     onChange={(e) => setEditCategoryName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && saveEditCategory()}
+                    autoFocus
                   />
                   <label htmlFor={`editCat-${group.category_id}`}>Edit category</label>
                 </div>
@@ -386,6 +520,7 @@ const Assets = () => {
               placeholder="Add modifier group"
               value={newModifierGroup}
               onChange={(e) => setNewModifierGroup(e.target.value)}
+              autoFocus
             />
             <label htmlFor="floatingInput">Add modifier group</label>
           </div>
@@ -430,6 +565,7 @@ const Assets = () => {
                     value={editModifierGroupName}
                     onChange={(e) => setEditModifierGroupName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && saveEditModifierGroup()}
+                    autoFocus
                   />
                   <label htmlFor={`editModGroup-${group.modifier_group_id}`}>Edit modifier group</label>
                 </div>
@@ -464,13 +600,133 @@ const Assets = () => {
                     />
                   </button>
 
-                  <button className="btn btn-sm border-0">
+                  <button
+                    className="btn btn-sm border-0"
+                    onClick={() => {
+                      setIsAddingModifier(true);
+                      setModifierGroupId(group.modifier_group_id);
+                      setNewModifier("");
+                      fetchModifiers(); // ensure latest list before adding
+                    }}
+                    title="Add modifier"
+                  >
                     <FaPlus style={{ fontSize: "18px" }} />
                   </button>
                 </div>
               </>
             )}
           </div>
+
+          {/* List all modifiers for this group */}
+          {(modifiersByGroup[group.modifier_group_id] ?? []).map((mod) => (
+            <div
+              key={mod.modifier_id}
+              className="d-flex justify-content-between align-items-start border rounded px-3 py-3 mb-2"
+              style={{ backgroundColor: "#fff" }}
+            >
+              {editingModifierId === mod.modifier_id ? (
+                // --- EDITING A MODIFIER ---
+                <div className="d-flex align-items-center w-100 gap-2">
+                  <div className="form-floating flex-grow-1">
+                    <input
+                      type="text"
+                      className="form-control"
+                      id={`editMod-${mod.modifier_id}`}
+                      placeholder="Edit modifier"
+                      value={editModifierName}
+                      onChange={(e) => setEditModifierName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveEditModifier()}
+                      autoFocus
+                    />
+                    <label htmlFor={`editMod-${mod.modifier_id}`}>Edit modifier</label>
+                  </div>
+
+                  <button className="btn border-0 bg-transparent" onClick={cancelEditModifier} title="Cancel">
+                    <IoClose style={{ color: "rgba(153, 35, 35, 1)", fontSize: "24px" }} />
+                  </button>
+                  <button className="btn border-0 bg-transparent" onClick={saveEditModifier} title="Save">
+                    <IoCheckmark style={{ color: "rgba(29, 114, 26, 1)", fontSize: "24px" }} />
+                  </button>
+                </div>
+              ) : (
+                // --- VIEW A MODIFIER ---
+                <>
+                  <div className="fw-bold text-danger">{mod.name}</div>
+                  <div>
+                    <button className="btn btn-sm border-0 me-2" onClick={() => startEditModifier(mod)} title="Edit modifier">
+                      <GoPencil style={{ fontSize: "18px" }} />
+                    </button>
+
+                    <button
+                      className="btn btn-sm border-0 me-2"
+                      onClick={() => handleDeleteModifier(mod.modifier_id)}
+                      disabled={deleteModifierId === mod.modifier_id}
+                      title="Delete modifier"
+                    >
+                      <IoTrashOutline style={{ fontSize: "18px" }} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+
+          {/* Add new modifier input row (new line under the group) */}
+          {isAddingModifier && modifierGroupId === group.modifier_group_id && (
+            <div id="AddModifierInput" className="d-flex align-items-center w-100 gap-2 mb-3">
+              {/* Input */}
+              <div className="form-floating flex-grow-1">
+                <input
+                  type="text"
+                  className="form-control"
+                  id={`addModifier-${group.modifier_group_id}`}
+                  placeholder="Add modifier"
+                  value={newModifier}
+                  onChange={(e) => setNewModifier(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" &&
+                    modifierGroupId &&
+                    handleAddModifier(newModifier, modifierGroupId)
+                  }
+                  autoFocus
+                />
+                <label htmlFor={`addModifier-${group.modifier_group_id}`}>Add modifier</label>
+              </div>
+
+              {/* Buttons */}
+              <div id="AddModifierButtons" className="d-flex">
+                <button
+                  className="btn border-0 bg-transparent"
+                  type="button"
+                  id="CancelNewModifier"
+                  onClick={() => {
+                    setIsAddingModifier(false);
+                    setNewModifier("");
+                    setModifierGroupId(null);
+                  }}
+                  title="Cancel"
+                >
+                  <IoClose style={{ color: "rgba(153, 35, 35, 1)", fontSize: "24px" }} />
+                </button>
+
+                <button
+                  className="btn border-0 bg-transparent"
+                  type="submit"
+                  id="SubmitNewModifier"
+                  onClick={() => {
+                    if (!modifierGroupId) {
+                      console.error("Modifier group ID not found.");
+                      return;
+                    }
+                    handleAddModifier(newModifier, modifierGroupId);
+                  }}
+                  title="Save"
+                >
+                  <IoCheckmark style={{ color: "rgba(29, 114, 26, 1)", fontSize: "24px" }} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
