@@ -152,9 +152,7 @@ const Assets = () => {
     }
   };
 
-  // -------- Modifiers (list/load/edit/delete) --------
-
-  // Fetch modifiers for all visible groups (no params; uses state)
+  // Fetch modifiers
   const fetchModifiers = async () => {
     if (!modifierGroups || modifierGroups.length === 0) {
       setModifiersByGroup({});
