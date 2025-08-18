@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import Navbar from "../../components/features/employee/global/Navbar";
@@ -11,7 +11,8 @@ import { useCategories } from "../../hooks/useCategories";
 import { useMenuItems } from "../../hooks/useMenuItems";
 import { useOrderItems } from "../../hooks/useOrderItems";
 import { addItemToCart } from "../../utils/cartUtils";
-import "./Orders.css"; // Import CSS file
+import type { CartItem } from "../../types/OrderTypes";
+import "./Orders.css";
 
 function Orders() {
   // Navigation
@@ -35,6 +36,53 @@ function Orders() {
   const { items, itemsLoading, itemsError } = useMenuItems();
   const { cart, setCart } = useOrderItems(tableId, setSaveError);
 
+    // Effect to load existing order items when component mounts or tableId changes
+  useEffect(() => {
+    const loadExistingOrder = async () => {
+      if (!tableId) return;
+
+      try {
+        // Fetch the latest customer_order and its order_items for the table
+        const { data: customerOrder, error: orderError } = await supabase
+          .from("customer_orders")
+          .select("order_id")
+          .eq("table_id", tableId)
+          .in("status", ["preparing"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (orderError && orderError.code !== "PGRST116") { // PGRST116 is "no rows"
+          throw new Error(`Failed to fetch order: ${orderError.message}`);
+        }
+
+        if (customerOrder) {
+          const { data: orderItems, error: itemsError } = await supabase
+            .from("order_items")
+            .select("item_id, quantity, price_each, note")
+            .eq("order_id", customerOrder.order_id);
+
+          if (itemsError) throw new Error(`Failed to fetch order items: ${itemsError.message}`);
+
+          // Transform all order_items into cart format
+          const loadedCart: CartItem[] = orderItems.map((item) => ({
+            item_id: item.item_id,
+            title: items.find((m) => m.item_id === item.item_id)?.title || "Unknown Item",
+            count: item.quantity,
+            price: item.price_each,
+            note: item.note || "",
+          }));
+          setCart(loadedCart);
+        }
+      } catch (e: any) {
+        setSaveError(e.message);
+        console.error("Error loading existing order:", e.message);
+      }
+    };
+
+    loadExistingOrder();
+  }, [tableId, setCart, items]);
+
   // Save Order Handler
   const handleSave = async () => {
     if (!tableId || cart.length === 0) return;
@@ -43,8 +91,12 @@ function Orders() {
     setSaveError(null);
 
     try {
-      // Validate cart items
+      // Step 1: Validate cart items
+
+      // check id item doesnt have id or price
       const invalidItems = cart.filter((item) => !item.item_id || !item.price);
+
+      // if there is > 0 invalid item, throw error
       if (invalidItems.length > 0) {
         throw new Error(
           `Invalid menu items in cart: ${invalidItems
@@ -53,25 +105,31 @@ function Orders() {
         );
       }
 
-      // Check for existing open order
+      // Step 2: Check for existing open order
+
+      // select if an existing order exist using customer_order table
       const { data: existingOrder, error: orderError } = await supabase
         .from("customer_orders")
         .select("order_id")
         .eq("table_id", tableId)
-        .eq("status", "closed")
+        .eq("status", "preparing")
         .single();
 
       let orderId: string;
+      
+      // Step 3: if theres an order error or theres no orders that exist insert new order, else return existing
       if (orderError || !existingOrder) {
-        // Create new order if none exists
+        // insert newOrder data into customer_orders table
         const { data: newOrder, error: newOrderError } = await supabase
           .from("customer_orders")
           .insert([{ table_id: tableId, status: "preparing" }])
           .select("order_id")
           .single();
+        // if newOrderError throw error
         if (newOrderError)
           throw new Error(`Failed to create order: ${newOrderError.message}`);
         orderId = newOrder.order_id;
+      // orderId == exisiting orderID
       } else {
         orderId = existingOrder.order_id;
       }
@@ -93,13 +151,13 @@ function Orders() {
 
       // Clear cart and navigate back
       setCart([]);
-      navigate("/tables");
     } catch (e: any) {
       setSaveError(e.message);
       console.error("Error saving order:", e.message);
     } finally {
       setSaving(false);
     }
+    navigate("/tables");
   };
 
   // Render with Error Boundary
@@ -121,7 +179,7 @@ function Orders() {
           tableNumber={tableNumber}
           saveError={saveError}
           saving={saving}
-          onSave={handleSave}
+          onSave={handleSave} 
           onBack={navigateBack}
         />
         <CategoriesPanel
