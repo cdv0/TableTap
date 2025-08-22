@@ -1,8 +1,35 @@
+import { useTablesData } from "../../../../hooks/useTablesData";
+import { supabase } from "../../../../supabaseClient";
+
 interface Props {
   tableNumber: number;
+  orderId?: string;
+  itemCount: number; // Add itemCount prop
 }
 
-function OrderCard({ tableNumber }: Props) {
+function OrderCard({ tableNumber, orderId, itemCount }: Props) {
+  const { navigateToOrders } = useTablesData();
+
+  const handleAccept = async () => {
+    if (orderId) {
+      const { error } = await supabase
+        .from("customer_orders")
+        .update({ status: "preparing" })
+        .eq("order_id", orderId);
+      if (error) console.error("Error accepting order:", error.message);
+    }
+  };
+
+  const handleDecline = async () => {
+    if (orderId) {
+      const { error } = await supabase
+        .from("customer_orders")
+        .update({ status: "closed" })
+        .eq("order_id", orderId);
+      if (error) console.error("Error declining order:", error.message);
+    }
+  };
+
   return (
     <div
       style={{
@@ -33,13 +60,12 @@ function OrderCard({ tableNumber }: Props) {
             cursor: "pointer",
             textDecoration: "underline",
           }}
+          onClick={() => navigateToOrders(tableNumber)}
         >
           edit
         </button>
       </div>
-      <p>test</p>
-      <p>test</p>
-      <p>test</p>
+      <p>Items: {itemCount}</p> {/* Use itemCount prop */}
       <div style={{ display: "flex", gap: "40px", justifyContent: "center" }}>
         <button
           style={{
@@ -49,6 +75,7 @@ function OrderCard({ tableNumber }: Props) {
             width: "120px",
             fontWeight: 600,
           }}
+          onClick={handleAccept}
         >
           Accept
         </button>
@@ -60,6 +87,7 @@ function OrderCard({ tableNumber }: Props) {
             width: "120px",
             fontWeight: 600,
           }}
+          onClick={handleDecline}
         >
           Decline
         </button>

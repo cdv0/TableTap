@@ -9,7 +9,7 @@ function Tables() {
   const {
     selectedTable,
     sidebarOpen,
-    tables,
+    tables: tablesWithStatus,
     openOrders,
     error,
     isLoading,
@@ -31,19 +31,18 @@ function Tables() {
           <div className="loading-state">Loading tables...</div>
         ) : (
           <TableGrid
-            tables={tables.map((t) => t.number)}
+            tables={tablesWithStatus}
             selectedTable={selectedTable ?? undefined}
-            highlightedTables={tables} // Pass tables directly with isOccupied
             onTableClick={(tableNumber) => {
               setSelectedTable(tableNumber);
               navigateToOrders(tableNumber);
             }}
           />
         )}
-        <TableSidebar />
+        <TableSidebar openOrders={openOrders} tables={tablesWithStatus} />{" "}
+        {/* Pass tables */}
       </div>
     </div>
   );
 }
-
 export default Tables;

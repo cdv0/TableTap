@@ -2,15 +2,9 @@ interface Props {
   number: number;
   onClick: () => void;
   isOccupied?: boolean;
-  isSelected?: boolean;
 }
 
-function TableButton({
-  number,
-  isOccupied = false,
-  isSelected = false,
-  onClick,
-}: Props) {
+function TableButton({ number, isOccupied = false, onClick }: Props) {
   return (
     <div>
       <button

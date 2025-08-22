@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../supabaseClient";
-import { fetchAllTables, fetchOpenOrders, type TableRow, type OpenOrder } from "../utils/tableUtils";
+import { fetchAllTables, fetchOpenOrders, type TableRow, type OpenOrder} from "../utils/tableUtils";
 
 export function useTablesData() {
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
@@ -28,45 +27,6 @@ export function useTablesData() {
     })();
   }, []);
 
-  // Real-time subscriptions for tables and orders
-  useEffect(() => {
-    const tablesSubscription = supabase
-      .channel("tables-channel")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tables" },
-        async () => {
-          try {
-            const rows = await fetchAllTables();
-            setTables(rows);
-          } catch (e: any) {
-            setError(e.message ?? String(e));
-          }
-        }
-      )
-      .subscribe();
-
-    const ordersSubscription = supabase
-      .channel("orders-channel")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "open_orders_with_items" },
-        async () => {
-          try {
-            const orders = await fetchOpenOrders();
-            setOpenOrders(orders);
-          } catch (e: any) {
-            setError(e.message ?? String(e));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(tablesSubscription);
-      supabase.removeChannel(ordersSubscription);
-    };
-  }, []);
 
   // Map table numbers to UUID
   const numberToId = useMemo(() => {

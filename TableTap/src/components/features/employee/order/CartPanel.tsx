@@ -11,6 +11,7 @@ interface CartPanelProps {
   saving: boolean;
   onSave: () => void;
   onBack: () => void;
+  onClose: () => void;
 }
 
 function CartPanel({
@@ -21,6 +22,7 @@ function CartPanel({
   saving,
   onSave,
   onBack,
+  onClose,
 }: CartPanelProps) {
   return (
     <div className="cart-panel">
@@ -102,6 +104,14 @@ function CartPanel({
             disabled={saving}
           >
             Back
+          </button>
+          <button
+            type="button"
+            className="btn cart-buttons"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Closed
           </button>
         </div>
       </div>

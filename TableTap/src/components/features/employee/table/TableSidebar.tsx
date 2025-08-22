@@ -1,6 +1,22 @@
+import { useMemo } from "react";
 import OrderCard from "./OrderCard";
+import { type TableRow, type OpenOrder } from "../../../../utils/tableUtils";
 
-function TableSidebar() {
+interface Props {
+  openOrders: OpenOrder[];
+  tables: TableRow[];
+}
+
+function TableSidebar({ openOrders, tables }: Props) {
+  const ordersWithNumbers = useMemo(() => {
+    const tableMap = new Map<string, number>();
+    tables.forEach((table) => tableMap.set(table.id, table.number)); // Populate with actual table numbers
+    return openOrders.map((order) => ({
+      ...order,
+      tableNumber: tableMap.get(order.table_id) || 0, // Fallback to 0 if table_id not found
+    }));
+  }, [openOrders, tables]);
+
   return (
     <div
       style={{
@@ -13,8 +29,14 @@ function TableSidebar() {
       <div style={{ fontSize: "32px", fontWeight: 700, paddingBottom: "10px" }}>
         Pending Orders
       </div>
-      <OrderCard tableNumber={1} />
-      <OrderCard tableNumber={3} />
+      {ordersWithNumbers.map((order) => (
+        <OrderCard
+          key={order.order_id}
+          tableNumber={order.tableNumber}
+          orderId={order.order_id}
+          itemCount={order.item_count}
+        />
+      ))}
     </div>
   );
 }

@@ -160,6 +160,61 @@ function Orders() {
     navigate("/tables");
   };
 
+  // Close Order Handler
+  const handleClose = async () => {
+    if (!tableId) return;
+
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      // Step 1: Find existing order for this table
+      const { data: existingOrder, error: orderError } = await supabase
+        .from("customer_orders")
+        .select("order_id")
+        .eq("table_id", tableId)
+        .in("status", ["preparing", "ready"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (orderError && orderError.code !== "PGRST116") { // PGRST116 is "no rows"
+        throw new Error(`Failed to fetch order: ${orderError.message}`);
+      }
+
+      // Step 2: Update order status to 'closed' if order exists
+      if (existingOrder) {
+        const { error: updateOrderError } = await supabase
+          .from("customer_orders")
+          .update({ status: "closed" })
+          .eq("order_id", existingOrder.order_id);
+
+        if (updateOrderError) {
+          throw new Error(`Failed to close order: ${updateOrderError.message}`);
+        }
+      }
+
+      // Step 3: Update table status to 'available'
+      const { error: updateTableError } = await supabase
+        .from("tables")
+        .update({ status: "available" })
+        .eq("table_id", tableId);
+
+      if (updateTableError) {
+        throw new Error(`Failed to update table status: ${updateTableError.message}`);
+      }
+
+      // Step 4: Clear cart and navigate back
+      setCart([]);
+      navigate("/tables");
+    } catch (e: any) {
+      setSaveError(e.message);
+      console.error("Error closing order:", e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Render with Error Boundary
   if (!tableId) {
     return <div className="orders-container">Invalid table ID</div>; // Fallback for undefined tableId
@@ -181,6 +236,7 @@ function Orders() {
           saving={saving}
           onSave={handleSave} 
           onBack={navigateBack}
+          onClose={handleClose}
         />
         <CategoriesPanel
           categories={categories}
