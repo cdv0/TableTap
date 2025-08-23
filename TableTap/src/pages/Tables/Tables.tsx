@@ -16,6 +16,7 @@ function Tables() {
     setSelectedTable,
     setSidebarOpen,
     navigateToOrders,
+    refreshOrders,
   } = useTablesData();
 
   return (
@@ -39,7 +40,7 @@ function Tables() {
             }}
           />
         )}
-        <TableSidebar openOrders={openOrders} tables={tablesWithStatus} />{" "}
+        <TableSidebar openOrders={openOrders} tables={tablesWithStatus} refreshOrders={refreshOrders} />{" "}
         {/* Pass tables */}
       </div>
     </div>

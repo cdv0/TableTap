@@ -88,10 +88,15 @@ function CartPanel({
         </div>
       </div>
       <div className="cart-panel-footer">
-        <div className="d-flex flex-column justify-content-center align-items-center gap-3">
+        <div className="d-flex flex-row justify-content-center align-items-center gap-3">
           <button
             type="button"
             className="btn cart-buttons"
+            style={{
+              backgroundColor: "#28a745",
+              color: "white",
+              border: "none"
+            }}
             onClick={onSave}
             disabled={cart.length === 0 || saving}
           >
@@ -108,6 +113,11 @@ function CartPanel({
           <button
             type="button"
             className="btn cart-buttons"
+            style={{
+              backgroundColor: "#dc3545",
+              color: "white",
+              border: "none"
+            }}
             onClick={onClose}
             disabled={saving}
           >

@@ -5,6 +5,7 @@ export type TableRow = {
   number: number;
   status: "available" | "occupied";
   isOccupied?: boolean;
+  hasPendingOrder?: boolean;
 };
 
 export type OpenOrder = {
@@ -12,7 +13,7 @@ export type OpenOrder = {
   table_id: string;
   status: string;
   created_at: string;
-  item_count: number;
+  item_names: string[];
 };
 
 // Fetch open orders directly from customer_orders and order_items
@@ -24,9 +25,12 @@ export async function fetchOpenOrders(): Promise<OpenOrder[]> {
       table_id,
       status,
       created_at,
-      order_items(item_id, quantity)
+      order_items(
+        item_id,
+        menu_items(name)
+      )
     `)
-    .eq("status", "preparing");
+    .eq("status", "pending");
 
   if (error) throw new Error(`Failed to fetch open orders: ${error.message}`);
   if (!data) return [];
@@ -36,7 +40,9 @@ export async function fetchOpenOrders(): Promise<OpenOrder[]> {
     table_id: row.table_id,
     status: row.status,
     created_at: row.created_at,
-    item_count: row.order_items ? row.order_items.length : 0,
+    item_names: row.order_items 
+      ? row.order_items.map((item: any) => item.menu_items?.name || "Unknown Item")
+      : [],
   }));
 }
 

@@ -5,9 +5,10 @@ import { type TableRow, type OpenOrder } from "../../../../utils/tableUtils";
 interface Props {
   openOrders: OpenOrder[];
   tables: TableRow[];
+  refreshOrders: () => void;
 }
 
-function TableSidebar({ openOrders, tables }: Props) {
+function TableSidebar({ openOrders, tables, refreshOrders }: Props) {
   const ordersWithNumbers = useMemo(() => {
     const tableMap = new Map<string, number>();
     tables.forEach((table) => tableMap.set(table.id, table.number)); // Populate with actual table numbers
@@ -34,7 +35,8 @@ function TableSidebar({ openOrders, tables }: Props) {
           key={order.order_id}
           tableNumber={order.tableNumber}
           orderId={order.order_id}
-          itemCount={order.item_count}
+          itemNames={order.item_names}
+          refreshOrders={refreshOrders}
         />
       ))}
     </div>

@@ -24,11 +24,13 @@ function TableGrid({ tables, onTableClick }: Props) {
     >
       {tables.map((table) => {
         const isOccupied = table.isOccupied;
+        const hasPendingOrder = table.hasPendingOrder;
         return (
           <TableButton
             key={table.id}
             number={table.number}
             isOccupied={isOccupied}
+            hasPendingOrder={hasPendingOrder}
             onClick={() => onTableClick(table.number)}
           />
         );

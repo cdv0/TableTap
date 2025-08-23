@@ -12,20 +12,32 @@ export function useTablesData() {
   const navigate = useNavigate();
 
   // Fetch tables and open orders
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [rows, orders] = await Promise.all([fetchAllTables(), fetchOpenOrders()]);
+      setTables(rows);
+      setOpenOrders(orders);
+    } catch (e: any) {
+      setError(e.message ?? String(e));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        setIsLoading(true);
-        const [rows, orders] = await Promise.all([fetchAllTables(), fetchOpenOrders()]);
-        setTables(rows);
-        setOpenOrders(orders);
-      } catch (e: any) {
-        setError(e.message ?? String(e));
-      } finally {
-        setIsLoading(false);
-      }
-    })();
+    fetchData();
   }, []);
+
+  // Refresh orders data
+  const refreshOrders = async () => {
+    try {
+      const orders = await fetchOpenOrders();
+      setOpenOrders(orders);
+    } catch (e: any) {
+      setError(e.message ?? String(e));
+    }
+  };
 
 
   // Map table numbers to UUID
@@ -37,12 +49,16 @@ export function useTablesData() {
 
   // Determine table status (occupied or available)
   const tablesWithStatus = useMemo(() => {
-    return tables.map((table) => ({
-      ...table,
-      isOccupied:
-        table.status === "occupied" ||
-        openOrders.some((order) => order.table_id === table.id),
-    }));
+    return tables.map((table) => {
+      const hasPendingOrder = openOrders.some((order) => order.table_id === table.id);
+      return {
+        ...table,
+        isOccupied:
+          table.status === "occupied" ||
+          openOrders.some((order) => order.table_id === table.id),
+        hasPendingOrder: hasPendingOrder,
+      };
+    });
   }, [tables, openOrders]);
 
   // Navigate to table orders
@@ -62,5 +78,6 @@ export function useTablesData() {
     setSelectedTable,
     setSidebarOpen,
     navigateToOrders,
+    refreshOrders,
   };
 }

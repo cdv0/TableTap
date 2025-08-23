@@ -4,10 +4,11 @@ import { supabase } from "../../../../supabaseClient";
 interface Props {
   tableNumber: number;
   orderId?: string;
-  itemCount: number; // Add itemCount prop
+  itemNames: string[];
+  refreshOrders: () => void;
 }
 
-function OrderCard({ tableNumber, orderId, itemCount }: Props) {
+function OrderCard({ tableNumber, orderId, itemNames, refreshOrders }: Props) {
   const { navigateToOrders } = useTablesData();
 
   const handleAccept = async () => {
@@ -17,6 +18,10 @@ function OrderCard({ tableNumber, orderId, itemCount }: Props) {
         .update({ status: "preparing" })
         .eq("order_id", orderId);
       if (error) console.error("Error accepting order:", error.message);
+      else {
+        // Refresh the orders data
+        await refreshOrders();
+      }
     }
   };
 
@@ -27,6 +32,10 @@ function OrderCard({ tableNumber, orderId, itemCount }: Props) {
         .update({ status: "closed" })
         .eq("order_id", orderId);
       if (error) console.error("Error declining order:", error.message);
+      else {
+        // Refresh the orders data
+        await refreshOrders();
+      }
     }
   };
 
@@ -65,7 +74,14 @@ function OrderCard({ tableNumber, orderId, itemCount }: Props) {
           edit
         </button>
       </div>
-      <p>Items: {itemCount}</p> {/* Use itemCount prop */}
+      <div style={{ marginBottom: "10px" }}>
+        <p style={{ marginBottom: "5px", fontWeight: "600" }}>Items:</p>
+        {itemNames.map((itemName, index) => (
+          <p key={index} style={{ margin: "2px 0", paddingLeft: "10px" }}>
+            {itemName}
+          </p>
+        ))}
+      </div>
       <div style={{ display: "flex", gap: "40px", justifyContent: "center" }}>
         <button
           style={{

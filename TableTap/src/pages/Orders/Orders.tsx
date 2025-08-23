@@ -19,7 +19,7 @@ function Orders() {
   const navigate = useNavigate();
   const { tableId } = useParams<{ tableId: string }>();
   const navigateBack = () => {
-    setCart([]); // Clear cart on back navigation
+    setCart([]);
     navigate("/tables");
   };
 
@@ -148,6 +148,16 @@ function Orders() {
         .insert(orderItems);
       if (itemsError)
         throw new Error(`Failed to save order items: ${itemsError.message}`);
+
+      // Step 4: Update table status to 'occupied'
+      const { error: updateTableError } = await supabase
+        .from("tables")
+        .update({ status: "occupied" })
+        .eq("table_id", tableId);
+
+      if (updateTableError) {
+        throw new Error(`Failed to update table status: ${updateTableError.message}`);
+      }
 
       // Clear cart and navigate back
       setCart([]);
