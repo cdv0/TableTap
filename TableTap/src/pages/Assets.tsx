@@ -8,6 +8,24 @@ import { IoClose, IoCheckmark } from "react-icons/io5";
 import AddItemSidebar from "../components/features/employee/assets/OverlaySidebar/AddItemSidebar";
 import { supabase } from "../supabaseClient";
 import { useEffect } from "react";
+import {
+  selectCategories,
+  insertCategory,
+  updateCategoryName,
+  deleteCategoryCascade,
+} from "../services/Categories";
+import {
+  selectModifierGroups,
+  insertModifierGroup,
+  updateModifierGroupName,
+  deleteModifierGroupCascade,
+} from "../services/ModifierGroups";
+import {
+  selectModifiersByGroupIds,
+  insertModifier,
+  updateModifierName,
+  deleteModifierById,
+} from "../services/Modifiers";
 
 const Assets = () => {
   //Left sidebar state
@@ -89,7 +107,9 @@ const Assets = () => {
   // Fetch all of the organization's categories
   const fetchCategories = async () => {
     if (!organizationId) return;
-    const { data, error } = await supabase.from("categories").select("*").eq("organization_id", organizationId);
+    // const { data, error } = await supabase.from("categories").select("*").eq("organization_id", organizationId);
+    // const { data, error } = await supabase.from("categories").select("*").eq("organization_id", organizationId);
+    const { data, error } = await selectCategories(organizationId);
     if (!error) setCategories(data ?? []);
   };
 
@@ -99,12 +119,14 @@ const Assets = () => {
 
   // Handle Add Category
   const handleAddCategory = async (name: string, organizationId: string) => {
-    const { data, error } = await supabase.from("categories").insert([
-      {
-        name: name,
-        organization_id: organizationId,
-      },
-    ]);
+    // const { data, error } = await supabase.from("categories").insert([
+    //   {
+    //     name: name,
+    //     organization_id: organizationId,
+    //   },
+    // ]);
+    // const { data, error } = await supabase.from("categories").insert([{ name: name, organization_id: organizationId }]);
+    const { data, error } = await insertCategory(name, organizationId);
 
     if (error) {
       console.error("Error adding category:", error.message);
@@ -126,25 +148,29 @@ const Assets = () => {
     setDeleteCategoryIds(categoryId);
 
     try {
-      // Delete menu items first (child table)
-      const { error: itemsError } = await supabase
-        .from("menu_items")
-        .delete()
-        .eq("category_id", categoryId)
-        .eq("organization_id", organizationId);
+      // // Delete menu items first (child table)
+      // const { error: itemsError } = await supabase
+      //   .from("menu_items")
+      //   .delete()
+      //   .eq("category_id", categoryId)
+      //   .eq("organization_id", organizationId);
 
-      if (itemsError) throw itemsError;
+      // if (itemsError) throw itemsError;
 
-      // Delete the category (parent)
-      const { error: catError } = await supabase
-        .from("categories")
-        .delete()
-        .eq("category_id", categoryId)
-        .eq("organization_id", organizationId);
+      // // Delete the category (parent)
+      // const { error: catError } = await supabase
+      //   .from("categories")
+      //   .delete()
+      //   .eq("category_id", categoryId)
+      //   .eq("organization_id", organizationId);
 
-      if (catError) throw catError;
+      // if (catError) throw catError;
 
+      // await fetchCategories();
+      
+      await deleteCategoryCascade(organizationId, categoryId);
       await fetchCategories();
+      
     } catch (err: any) {
       console.error(err?.message || err);
     } finally {
@@ -163,10 +189,12 @@ const Assets = () => {
       .map((g) => g.modifier_group_id)
       .filter(Boolean);
 
-    const { data, error } = await supabase
-      .from("modifier")
-      .select("*")
-      .in("modifier_group_id", groupIds);
+    // const { data, error } = await supabase
+    //   .from("modifier")
+    //   .select("*")
+    //   .in("modifier_group_id", groupIds);
+
+    const { data, error } = await selectModifiersByGroupIds(groupIds);
 
     if (error) {
       console.error("Failed to fetch modifiers:", error.message);
@@ -196,10 +224,12 @@ const Assets = () => {
   const saveEditModifier = async () => {
     if (!editingModifierId) return;
 
-    const { error } = await supabase
-      .from("modifier")
-      .update({ name: editModifierName })
-      .eq("modifier_id", editingModifierId);
+    // const { error } = await supabase
+    //   .from("modifier")
+    //   .update({ name: editModifierName })
+    //   .eq("modifier_id", editingModifierId);
+
+    const { error } = await updateModifierName(editingModifierId, editModifierName);
 
     if (error) {
       console.error("Update modifier failed:", error.message);
@@ -220,10 +250,12 @@ const Assets = () => {
     setDeleteModifierId(modId);
 
     try {
-      const { error: modError } = await supabase
-        .from("modifier")
-        .delete()
-        .eq("modifier_id", modId);
+      // const { error: modError } = await supabase
+      //   .from("modifier")
+      //   .delete()
+      //   .eq("modifier_id", modId);
+
+      const { error: modError } = await deleteModifierById(modId);
 
       if (modError) throw modError;
 
@@ -248,11 +280,13 @@ const Assets = () => {
 
   const saveEditCategory = async () => {
     if (!organizationId || !editingCategoryId) return;
-    const { error } = await supabase
-      .from("categories")
-      .update({ name: editCategoryName })
-      .eq("category_id", editingCategoryId)
-      .eq("organization_id", organizationId);
+    // const { error } = await supabase
+    //   .from("categories")
+    //   .update({ name: editCategoryName })
+    //   .eq("category_id", editingCategoryId)
+    //   .eq("organization_id", organizationId);
+
+    const { error } = await updateCategoryName(organizationId, editingCategoryId, editCategoryName);
     if (error) {
       console.error("Update category failed:", error.message);
       return;
@@ -264,7 +298,10 @@ const Assets = () => {
   // Fetch all of the organization's modifier groups (scoped by org)
   const fetchModifierGroups = async () => {
     if (!organizationId) return;
-    const { data, error } = await supabase.from("modifier_group").select("*").eq("organization_id", organizationId);
+    // const { data, error } = await supabase.from("modifier_group").select("*").eq("organization_id", organizationId);
+
+    const { data, error } = await selectModifierGroups(organizationId);
+    
     if (!error) {
       setModifierGroups(data ?? []);
     } else {
@@ -295,21 +332,25 @@ const Assets = () => {
     setDeleteModifierGroupIds(modifierGroupId);
 
     try {
-      // Delete modifiers first (child table). Note: no org filter here because `modifier` has no org column.
-      const { error: itemsError } = await supabase.from("modifier").delete().eq("modifier_group_id", modifierGroupId);
+      // // Delete modifiers first (child table). Note: no org filter here because `modifier` has no org column.
+      // const { error: itemsError } = await supabase.from("modifier").delete().eq("modifier_group_id", modifierGroupId);
 
-      if (itemsError) throw itemsError;
+      // if (itemsError) throw itemsError;
 
-      // Delete the modifier group (parent)
-      const { error: modifierError } = await supabase
-        .from("modifier_group")
-        .delete()
-        .eq("modifier_group_id", modifierGroupId)
-        .eq("organization_id", organizationId);
+      // // Delete the modifier group (parent)
+      // const { error: modifierError } = await supabase
+      //   .from("modifier_group")
+      //   .delete()
+      //   .eq("modifier_group_id", modifierGroupId)
+      //   .eq("organization_id", organizationId);
 
-      if (modifierError) throw modifierError;
+      // if (modifierError) throw modifierError;
 
+      // await fetchModifierGroups();
+
+      await deleteModifierGroupCascade(organizationId, modifierGroupId);
       await fetchModifierGroups();
+
       // fetchModifiers will run via the effect above when groups update
     } catch (err: any) {
       console.error(err?.message || err);
@@ -323,12 +364,14 @@ const Assets = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
 
-    const { error } = await supabase.from("modifier").insert([
-      {
-        name: trimmed,
-        modifier_group_id: mGroupId,
-      },
-    ]);
+    // const { error } = await supabase.from("modifier").insert([
+    //   {
+    //     name: trimmed,
+    //     modifier_group_id: mGroupId,
+    //   },
+    // ]);
+
+    const { error } = await insertModifier(trimmed, mGroupId);
 
     if (error) {
       console.error("Error adding modifier:", error.message);
@@ -344,12 +387,14 @@ const Assets = () => {
 
   // Handle Add Modifier Group
   const handleAddModifierGroup = async (name: string, organizationId: string) => {
-    const { data, error } = await supabase.from("modifier_group").insert([
-      {
-        name: name,
-        organization_id: organizationId,
-      },
-    ]);
+    // const { data, error } = await supabase.from("modifier_group").insert([
+    //   {
+    //     name: name,
+    //     organization_id: organizationId,
+    //   },
+    // ]);
+
+    const { data, error } = await insertModifierGroup(name, organizationId);
 
     if (error) {
       console.error("Error adding modifier group:", error.message);
@@ -374,11 +419,14 @@ const Assets = () => {
 
   const saveEditModifierGroup = async () => {
     if (!organizationId || !editingModifierGroupId) return;
-    const { error } = await supabase
-      .from("modifier_group")
-      .update({ name: editModifierGroupName })
-      .eq("modifier_group_id", editingModifierGroupId)
-      .eq("organization_id", organizationId);
+    // const { error } = await supabase
+    //   .from("modifier_group")
+    //   .update({ name: editModifierGroupName })
+    //   .eq("modifier_group_id", editingModifierGroupId)
+    //   .eq("organization_id", organizationId);
+
+    const { error } = await updateModifierGroupName(organizationId, editingModifierGroupId, editModifierGroupName);
+
     if (error) {
       console.error("Update modifier group failed:", error.message);
       return;
