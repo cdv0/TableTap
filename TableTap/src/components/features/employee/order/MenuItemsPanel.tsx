@@ -1,13 +1,20 @@
 import CategoryNavButton from "./CategoryNavButton";
-import type { MenuItem } from "../../../../types/OrderTypes";
+import ItemModifiers from "./ItemModifiers";
+import type { MenuItem, CartItem } from "../../../../types/OrderTypes";
+import type { MenuItemWithModifiers } from "../../../../hooks/useMenuItems";
+
 interface MenuItemsPanelProps {
-  items: MenuItem[];
+  items: MenuItemWithModifiers[];
   itemsLoading: boolean;
   itemsError: string | null;
   search: string;
   setSearch: (search: string) => void;
   selectedCategory: string;
   addItemToCart: (item: MenuItem) => void;
+  editingItem?: CartItem | null;
+  onSaveEdit?: (updatedItem: CartItem) => void;
+  onCancelEdit?: () => void;
+  onDeleteEdit?: () => void;
 }
 
 function MenuItemsPanel({
@@ -18,6 +25,10 @@ function MenuItemsPanel({
   setSearch,
   selectedCategory,
   addItemToCart,
+  editingItem,
+  onSaveEdit,
+  onCancelEdit,
+  onDeleteEdit,
 }: MenuItemsPanelProps) {
   const searchItems = items
     .filter(
@@ -25,6 +36,28 @@ function MenuItemsPanel({
     )
     .filter((it) => it.title.toLowerCase().includes(search.toLowerCase()));
 
+  // If we're editing an item, show the modifiers panel
+  if (editingItem) {
+    const menuItem = items.find(item => item.item_id === editingItem.item_id);
+    const menuItemModifiers = menuItem ? {
+      modifierGroups: menuItem.modifierGroups || [],
+      modifiers: menuItem.modifiers || []
+    } : undefined;
+
+    return (
+      <div className="menu-items-panel">
+        <ItemModifiers
+          item={editingItem}
+          menuItemModifiers={menuItemModifiers}
+          onSave={onSaveEdit || (() => {})}
+          onCancel={onCancelEdit || (() => {})}
+          onDelete={onDeleteEdit || (() => {})}
+        />
+      </div>
+    );
+  }
+
+  // Otherwise show the regular menu items
   return (
     <div className="menu-items-panel">
       <input
