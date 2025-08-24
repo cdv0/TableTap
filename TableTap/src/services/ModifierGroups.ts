@@ -10,7 +10,9 @@ export async function selectModifierGroups(organizationId: string) {
 export async function insertModifierGroup(name: string, organizationId: string) {
   return await supabase
     .from("modifier_group")
-    .insert([{ name, organization_id: organizationId }]);
+    .insert([{ name, organization_id: organizationId }])
+    .select("*")
+    .single();
 }
 
 export async function updateModifierGroupName(
@@ -29,20 +31,15 @@ export async function deleteModifierGroupCascade(
   organizationId: string,
   modifierGroupId: string
 ) {
-  // Delete modifiers first (child table). Note: no org filter here because `modifier` has no org column.
-  const { error: itemsError } = await supabase
-    .from("modifier")
-    .delete()
-    .eq("modifier_group_id", modifierGroupId);
-  if (itemsError) throw itemsError;
+  // Updated Supabase to have on delete cascade
 
-  // Delete the modifier group (parent)
-  const { error: modifierError } = await supabase
+  // Delete modifier_group (parent)
+  const { error } = await supabase
     .from("modifier_group")
     .delete()
     .eq("modifier_group_id", modifierGroupId)
     .eq("organization_id", organizationId);
-  if (modifierError) throw modifierError;
 
+  if (error) throw error;
   return { error: null as null };
 }
