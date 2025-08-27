@@ -24,13 +24,13 @@ import {
   deleteModifierById,
 } from "../services/Modifiers";
 import {
-  selectMenuItems
+  selectMenuItems,
+  deleteMenuItemCascade
 } from "../services/MenuItems"
 import { useOrganizationId } from "../hooks/useOrganizationId";
 import { useDbCategories } from "../hooks/useDbCategories";
 import { useModifierGroups } from "../hooks/useModifierGroups";
 import { useModifiersByGroup } from "../hooks/useModifiers";
-import { supabase } from "../supabaseClient";
 
 interface ModifierGroup {
   modifier_group_id: string;
@@ -88,21 +88,21 @@ const Assets = () => {
   // Delete modifier
   const [deleteModifierId, setDeleteModifierId] = useState<string | null>(null);
 
+  // Menu items
+  const [menuItemsByCategory, setMenuItemsByCategory] = useState<Record<string, any[]>>({});
+  const [deleteMenuItemId, setDeleteMenuItemId] = useState<string | null>(null);
+  const [editingMenuItem, setEditingMenuItem] = useState<any | null>(null);
+
   // useEffect hooks
   useOrganizationId(setOrganizationId);
   useDbCategories(organizationId, setCategories);
   useModifierGroups(organizationId, setModifierGroups);
   useModifiersByGroup(modifierGroups, setModifiersByGroup);
 
-  const [menuItemsByCategory, setMenuItemsByCategory] = useState<Record<string, any[]>>({});
-
   useEffect(() => {
     const refreshMenuItems = async () => {
       if (!organizationId) return;
-      const { data, error } = await supabase
-        .from("menu_items")
-        .select("*")
-        .eq("organization_id", organizationId);
+      const { data, error } = await selectMenuItems(organizationId);
       if (!error) {
         const grouped: Record<string, any[]> = {};
         (data ?? []).forEach((it: any) => {
@@ -112,13 +112,38 @@ const Assets = () => {
         });
         setMenuItemsByCategory(grouped);
       } else {
-        console.error("Failed to fetch menu items:", error.message);
+        console.error("Failed to fetch menu items:", (error as any).message);
       }
     };
     refreshMenuItems();
   }, [organizationId]);
 
   // HELPER FUNCTIONS
+
+  // Handle delete menu item
+  const handleDeleteMenuItem = async (itemId: string) => {
+    setDeleteMenuItemId(itemId);
+    try {
+      const { error } = await deleteMenuItemCascade(itemId);
+      if (error) throw error;
+      if (organizationId) {
+        const { data, error: err2 } = await selectMenuItems(organizationId);
+        if (!err2) {
+          const grouped: Record<string, any[]> = {};
+          (data ?? []).forEach((it: any) => {
+            const key = it.category_id;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(it);
+          });
+          setMenuItemsByCategory(grouped);
+        }
+      }
+    } catch (e: any) {
+      console.error(e?.message || e);
+    } finally {
+      setDeleteMenuItemId(null);
+    }
+  };
 
   // Handle Add Category
   const handleAddCategory = async (name: string, orgId: string) => {
@@ -159,13 +184,9 @@ const Assets = () => {
     setDeleteCategoryIds(categoryId);
     try {
       await deleteCategoryCascade(organizationId, categoryId);
-      // Refresh categories
       const { data: list, error: listErr } = await selectCategories(organizationId);
       if (!listErr) setCategories(list ?? []);
-      const { data, error } = await supabase
-        .from("menu_items")
-        .select("*")
-        .eq("organization_id", organizationId);
+      const { data, error } = await selectMenuItems(organizationId);
       if (!error) {
         const grouped: Record<string, any[]> = {};
         (data ?? []).forEach((it: any) => {
@@ -201,7 +222,6 @@ const Assets = () => {
       return;
     }
 
-    // refresh modifiers for all groups so the UI re-renders the new one
     const ids = modifierGroups.map((g) => g.modifier_group_id).filter(Boolean);
     const { data, error: mErr } = await selectModifiersByGroupIds(ids);
     if (!mErr) {
@@ -228,7 +248,6 @@ const Assets = () => {
       return;
     }
 
-    // Refresh modifiers
     const ids = modifierGroups.map((g) => g.modifier_group_id).filter(Boolean);
     const { data, error: mErr } = await selectModifiersByGroupIds(ids);
     if (!mErr) {
@@ -255,7 +274,6 @@ const Assets = () => {
       const { error: modError } = await deleteModifierById(modId);
       if (modError) throw modError;
 
-      // Refresh modifiers
       const ids = modifierGroups.map((g) => g.modifier_group_id).filter(Boolean);
       const { data, error: mErr } = await selectModifiersByGroupIds(ids);
       if (!mErr) {
@@ -292,7 +310,6 @@ const Assets = () => {
       return;
     }
 
-    // Refetch after adding
     if (organizationId) {
       const { data: groups, error: gErr } = await selectModifierGroups(organizationId);
       if (!gErr) setModifierGroups(groups ?? []);
@@ -315,7 +332,6 @@ const Assets = () => {
       return;
     }
 
-    // Refresh groups after update
     const { data: groups, error: gErr } = await selectModifierGroups(organizationId);
     if (!gErr) setModifierGroups(groups ?? []);
 
@@ -331,7 +347,6 @@ const Assets = () => {
     setDeleteModifierGroupIds(mGroupId);
     try {
       await deleteModifierGroupCascade(organizationId, mGroupId);
-      // Refresh groups
       const { data: groups, error: gErr } = await selectModifierGroups(organizationId);
       if (!gErr) setModifierGroups(groups ?? []);
     } catch (err: any) {
@@ -449,7 +464,10 @@ const Assets = () => {
                     <IoTrashOutline style={{ fontSize: "18px", opacity: deleteCategoryIds === group.category_id ? 0.5 : 1 }} />
                   </button>
 
-                  <button className="btn btn-sm border-0" onClick={() => { setSelectedCategoryId(group.category_id); setOverlaySidebarOpen(true); }}>
+                  <button
+                    className="btn btn-sm border-0"
+                    onClick={() => { setSelectedCategoryId(group.category_id); setEditingMenuItem(null); setOverlaySidebarOpen(true); }}
+                  >
                     <FaPlus style={{ fontSize: "18px" }} />
                   </button>
                 </div>
@@ -463,12 +481,27 @@ const Assets = () => {
               className="d-flex justify-content-between align-items-start border rounded px-3 py-3 mb-2"
               style={{ backgroundColor: "#fff" }}
             >
-              <>
-                <div className="fw-bold text-danger">
-                  {item.name}
-                </div>
-                <div></div>
-              </>
+              <div className="fw-bold text-danger">
+                {item.name}
+              </div>
+              <div>
+                <button
+                  className="btn btn-sm border-0 me-2"
+                  onClick={() => { setEditingMenuItem(item); setSelectedCategoryId(item.category_id); setOverlaySidebarOpen(true); }}
+                  title="Edit menu item"
+                >
+                  <GoPencil style={{ fontSize: "18px" }} />
+                </button>
+
+                <button
+                  className="btn btn-sm border-0 me-2"
+                  onClick={() => handleDeleteMenuItem(item.item_id)}
+                  disabled={deleteMenuItemId === item.item_id}
+                  title="Delete menu item"
+                >
+                  <IoTrashOutline style={{ fontSize: "18px", opacity: deleteMenuItemId === item.item_id ? 0.5 : 1 }} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -769,14 +802,17 @@ const Assets = () => {
               onClose={() => {
                 setOverlaySidebarOpen(false);
                 setSelectedCategoryId(null);
+                setEditingMenuItem(null);
               }}
               categoryId={selectedCategoryId}
               modifierGroups={modifierGroups}
               organizationId={organizationId}
+              existingItem={editingMenuItem}
               onSaved={async () => {
                 if (!organizationId) {
                   setOverlaySidebarOpen(false);
                   setSelectedCategoryId(null);
+                  setEditingMenuItem(null);
                   return;
                 }
                 const { data, error } = await selectMenuItems(organizationId);
@@ -791,6 +827,7 @@ const Assets = () => {
                 }
                 setOverlaySidebarOpen(false);
                 setSelectedCategoryId(null);
+                setEditingMenuItem(null);
               }}
             />
           )}

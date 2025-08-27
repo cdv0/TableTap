@@ -1,12 +1,22 @@
-import { useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { IoClose } from "react-icons/io5";
 import "./addItemSidebar.css";
 import {
   insertMenuItem,
   insertMenuItemModifierGroups,
+  updateMenuItem,
+  selectMenuItemModifierGroupIds,
+  replaceMenuItemModifierGroups,
 } from "../../../../../services/MenuItems";
 
 type ModifierGroup = { modifier_group_id: string; name: string };
+type MenuItem = {
+  item_id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  category_id: string;
+};
 
 interface Props {
   onClose: () => void;
@@ -14,6 +24,7 @@ interface Props {
   organizationId: string | null;
   modifierGroups: ModifierGroup[];
   onSaved?: () => void;
+  existingItem?: MenuItem | null;
 }
 
 type Values = {
@@ -39,13 +50,17 @@ type Action =
   | { type: "change"; name: "description"; value: string }
   | { type: "change"; name: "price"; value: string }
   | { type: "change"; name: "file"; value: File | null }
+  | { type: "setModifiers"; ids: string[] }
   | { type: "toggleModifier"; id: string }
+  | { type: "setAll"; values: Values }
   | { type: "resetToInitial" };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "change":
       return { ...state, values: { ...state.values, [action.name]: action.value } };
+    case "setModifiers":
+      return { ...state, values: { ...state.values, modifierGroupIds: action.ids } };
     case "toggleModifier": {
       const has = state.values.modifierGroupIds.includes(action.id);
       const next = has
@@ -53,6 +68,8 @@ function reducer(state: State, action: Action): State {
         : [...state.values.modifierGroupIds, action.id];
       return { ...state, values: { ...state.values, modifierGroupIds: next } };
     }
+    case "setAll":
+      return { values: action.values, initial: action.values };
     case "resetToInitial":
       return { ...state, values: state.initial };
     default:
@@ -60,10 +77,37 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-function AddItemSidebar({ onClose, categoryId, organizationId, modifierGroups, onSaved }: Props) {
+function AddItemSidebar({
+  onClose,
+  categoryId,
+  organizationId,
+  modifierGroups,
+  onSaved,
+  existingItem,
+}: Props) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [state, dispatch] = useReducer(reducer, { values: emptyValues, initial: emptyValues });
   const { name, description, price, file, modifierGroupIds } = state.values;
+
+  useEffect(() => {
+    if (existingItem) {
+      const base: Values = {
+        name: existingItem.name ?? "",
+        description: existingItem.description ?? "",
+        price: String(existingItem.price ?? ""),
+        file: null,
+        modifierGroupIds: [],
+      };
+      dispatch({ type: "setAll", values: base });
+
+      (async () => {
+        const { data, error } = await selectMenuItemModifierGroupIds(existingItem.item_id);
+        if (!error) dispatch({ type: "setModifiers", ids: data });
+      })();
+    } else {
+      dispatch({ type: "setAll", values: emptyValues });
+    }
+  }, [existingItem]);
 
   const onText =
     (field: "name" | "description") =>
@@ -86,9 +130,26 @@ function AddItemSidebar({ onClose, categoryId, organizationId, modifierGroups, o
 
   const handleSave = async () => {
     if (!organizationId || !categoryId || !name.trim() || price.trim() === "") return;
-
     const priceNum = Number.parseFloat(price);
     if (Number.isNaN(priceNum)) return;
+
+    if (existingItem) {
+      const { error: updErr } = await updateMenuItem(existingItem.item_id, {
+        name: name.trim(),
+        description: description.trim() || null,
+        price: priceNum,
+      });
+      if (updErr) return;
+      const { error: repErr } = await replaceMenuItemModifierGroups(
+        existingItem.item_id,
+        modifierGroupIds
+      );
+      if (repErr) return;
+      // TODO: upload image file later
+      onSaved?.();
+      onClose();
+      return;
+    }
 
     const { data: item, error: itemErr } = await insertMenuItem(
       name.trim(),
@@ -99,7 +160,7 @@ function AddItemSidebar({ onClose, categoryId, organizationId, modifierGroups, o
     );
     if (itemErr || !item) return;
 
-    // TODO: upload image file to storage and associate path later
+    // TODO: upload image file later
 
     const { error: joinErr } = await insertMenuItemModifierGroups(
       item.item_id,
@@ -121,7 +182,7 @@ function AddItemSidebar({ onClose, categoryId, organizationId, modifierGroups, o
       <div className="overlayContainer d-flex flex-column">
         <div className="flex-grow-1 d-flex flex-column">
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <h1 className="mb-0">Add item</h1>
+            <h1 className="mb-0">{existingItem ? "Edit item" : "Add item"}</h1>
             <button className="btn border-0 bg-transparent" type="button" id="ButtonClose" onClick={onClose}>
               <IoClose size={20} />
             </button>
