@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "../components/features/employee/global/Navbar";
 import Sidebar from "../components/features/employee/global/Sidebar";
 import { GoPencil } from "react-icons/go";
@@ -23,10 +23,19 @@ import {
   updateModifierName,
   deleteModifierById,
 } from "../services/Modifiers";
+import {
+  selectMenuItems
+} from "../services/MenuItems"
 import { useOrganizationId } from "../hooks/useOrganizationId";
 import { useDbCategories } from "../hooks/useDbCategories";
 import { useModifierGroups } from "../hooks/useModifierGroups";
 import { useModifiersByGroup } from "../hooks/useModifiers";
+import { supabase } from "../supabaseClient";
+
+interface ModifierGroup {
+  modifier_group_id: string;
+  name: string;
+}
 
 const Assets = () => {
   //Left sidebar state
@@ -34,6 +43,8 @@ const Assets = () => {
 
   // Right sidebar state
   const [overlaySidebarOpen, setOverlaySidebarOpen] = useState(false);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   // Fetch data from Supabase
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -54,7 +65,7 @@ const Assets = () => {
   // Add modifier group
   const [isAddingModifierGroup, setisAddingModifierGroup] = useState(false);
   const [newModifierGroup, setNewModifierGroup] = useState(""); // Temporarily store the draft input new modifier group value
-  const [modifierGroups, setModifierGroups] = useState<any[]>([]); // The array of all modifier groups from Supabase
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([]); // The array of all modifier groups from Supabase
   // Delete modifier groups (and all modifiers)
   const [deleteModifierGroupIds, setDeleteModifierGroupIds] = useState<string | null>(null);
 
@@ -82,6 +93,30 @@ const Assets = () => {
   useDbCategories(organizationId, setCategories);
   useModifierGroups(organizationId, setModifierGroups);
   useModifiersByGroup(modifierGroups, setModifiersByGroup);
+
+  const [menuItemsByCategory, setMenuItemsByCategory] = useState<Record<string, any[]>>({});
+
+  useEffect(() => {
+    const refreshMenuItems = async () => {
+      if (!organizationId) return;
+      const { data, error } = await supabase
+        .from("menu_items")
+        .select("*")
+        .eq("organization_id", organizationId);
+      if (!error) {
+        const grouped: Record<string, any[]> = {};
+        (data ?? []).forEach((it: any) => {
+          const key = it.category_id;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(it);
+        });
+        setMenuItemsByCategory(grouped);
+      } else {
+        console.error("Failed to fetch menu items:", error.message);
+      }
+    };
+    refreshMenuItems();
+  }, [organizationId]);
 
   // HELPER FUNCTIONS
 
@@ -127,6 +162,19 @@ const Assets = () => {
       // Refresh categories
       const { data: list, error: listErr } = await selectCategories(organizationId);
       if (!listErr) setCategories(list ?? []);
+      const { data, error } = await supabase
+        .from("menu_items")
+        .select("*")
+        .eq("organization_id", organizationId);
+      if (!error) {
+        const grouped: Record<string, any[]> = {};
+        (data ?? []).forEach((it: any) => {
+          const key = it.category_id;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(it);
+        });
+        setMenuItemsByCategory(grouped);
+      }
     } catch (err: any) {
       console.error(err?.message || err);
     } finally {
@@ -401,13 +449,28 @@ const Assets = () => {
                     <IoTrashOutline style={{ fontSize: "18px", opacity: deleteCategoryIds === group.category_id ? 0.5 : 1 }} />
                   </button>
 
-                  <button className="btn btn-sm border-0" onClick={() => setOverlaySidebarOpen(true)}>
+                  <button className="btn btn-sm border-0" onClick={() => { setSelectedCategoryId(group.category_id); setOverlaySidebarOpen(true); }}>
                     <FaPlus style={{ fontSize: "18px" }} />
                   </button>
                 </div>
               </>
             )}
           </div>
+
+          {(menuItemsByCategory[group.category_id] ?? []).map((item) => (
+            <div
+              key={item.item_id}
+              className="d-flex justify-content-between align-items-start border rounded px-3 py-3 mb-2"
+              style={{ backgroundColor: "#fff" }}
+            >
+              <>
+                <div className="fw-bold text-danger">
+                  {item.name}
+                </div>
+                <div></div>
+              </>
+            </div>
+          ))}
         </div>
       ))}
     </>
@@ -648,7 +711,7 @@ const Assets = () => {
     </div>
   );
 
-  {/* Return TSX */}
+  // Return TSX
   return (
     <div className="d-flex flex-column" style={{ height: "100vh" }}>
       {/* Global Header & Navigation Sidebar*/}
@@ -701,7 +764,36 @@ const Assets = () => {
           <div id="modifierGroups">{renderModifiers()}</div>
 
           {/* Close overlay sidebar when it's open */}
-          {overlaySidebarOpen && <AddItemSidebar onClose={() => setOverlaySidebarOpen(false)}></AddItemSidebar>}
+          {overlaySidebarOpen && (
+            <AddItemSidebar
+              onClose={() => {
+                setOverlaySidebarOpen(false);
+                setSelectedCategoryId(null);
+              }}
+              categoryId={selectedCategoryId}
+              modifierGroups={modifierGroups}
+              organizationId={organizationId}
+              onSaved={async () => {
+                if (!organizationId) {
+                  setOverlaySidebarOpen(false);
+                  setSelectedCategoryId(null);
+                  return;
+                }
+                const { data, error } = await selectMenuItems(organizationId);
+                if (!error) {
+                  const grouped: Record<string, any[]> = {};
+                  (data ?? []).forEach((it: any) => {
+                    const key = it.category_id;
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(it);
+                  });
+                  setMenuItemsByCategory(grouped);
+                }
+                setOverlaySidebarOpen(false);
+                setSelectedCategoryId(null);
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
