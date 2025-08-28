@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import Navbar from "../../components/features/employee/global/Navbar";
@@ -19,7 +19,7 @@ function Orders() {
   const navigate = useNavigate();
   const { tableId } = useParams<{ tableId: string }>();
   const navigateBack = () => {
-    setCart([]); // Clear cart on back navigation
+    setCart([]);
     navigate("/tables");
   };
 
@@ -29,6 +29,8 @@ function Orders() {
   const [search, setSearch] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editingItem, setEditingItem] = useState<CartItem | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number>(-1);
 
   // Hooks for Data Fetching
   const tableNumber = useTableNumber(tableId);
@@ -36,52 +38,67 @@ function Orders() {
   const { items, itemsLoading, itemsError } = useMenuItems();
   const { cart, setCart } = useOrderItems(tableId, setSaveError);
 
-    // Effect to load existing order items when component mounts or tableId changes
-  useEffect(() => {
-    const loadExistingOrder = async () => {
-      if (!tableId) return;
+  // Edit handlers
+  const handleEditItem = (item: CartItem, index: number) => {
+    setEditingItem(item);
+    setEditingIndex(index);
+  };
 
-      try {
-        // Fetch the latest customer_order and its order_items for the table
-        const { data: customerOrder, error: orderError } = await supabase
-          .from("customer_orders")
-          .select("order_id")
-          .eq("table_id", tableId)
-          .in("status", ["preparing"])
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (orderError && orderError.code !== "PGRST116") { // PGRST116 is "no rows"
-          throw new Error(`Failed to fetch order: ${orderError.message}`);
-        }
-
-        if (customerOrder) {
-          const { data: orderItems, error: itemsError } = await supabase
-            .from("order_items")
-            .select("item_id, quantity, price_each, note")
-            .eq("order_id", customerOrder.order_id);
-
-          if (itemsError) throw new Error(`Failed to fetch order items: ${itemsError.message}`);
-
-          // Transform all order_items into cart format
-          const loadedCart: CartItem[] = orderItems.map((item) => ({
-            item_id: item.item_id,
-            title: items.find((m) => m.item_id === item.item_id)?.title || "Unknown Item",
-            count: item.quantity,
-            price: item.price_each,
-            note: item.note || "",
-          }));
-          setCart(loadedCart);
-        }
-      } catch (e: any) {
-        setSaveError(e.message);
-        console.error("Error loading existing order:", e.message);
+  const handleSaveEdit = (updatedItem: CartItem) => {
+    if (editingIndex >= 0) {
+      const originalItem = cart[editingIndex];
+      const newCart = [...cart];
+      newCart[editingIndex] = updatedItem;
+      setCart(newCart);
+      
+      // Debug logging for modifier changes
+      console.log(`=== Modifier Update for Item: ${updatedItem.title} ===`);
+      console.log('Original modifiers:', originalItem.modifiers || []);
+      console.log('Updated modifiers:', updatedItem.modifiers || []);
+      
+      const originalModifierCount = originalItem.modifiers?.length || 0;
+      const updatedModifierCount = updatedItem.modifiers?.length || 0;
+      
+      if (updatedModifierCount > originalModifierCount) {
+        console.log(`Added ${updatedModifierCount - originalModifierCount} modifier(s)`);
+      } else if (updatedModifierCount < originalModifierCount) {
+        console.log(`Removed ${originalModifierCount - updatedModifierCount} modifier(s)`);
+      } else {
+        console.log(`Modified ${updatedModifierCount} modifier(s) (same count)`);
       }
-    };
+      
+      // Log specific changes
+      const originalModifierIds = new Set(originalItem.modifiers?.map(m => m.modifier_id) || []);
+      const updatedModifierIds = new Set(updatedItem.modifiers?.map(m => m.modifier_id) || []);
+      
+      const addedModifiers = updatedItem.modifiers?.filter(m => !originalModifierIds.has(m.modifier_id)) || [];
+      const removedModifiers = originalItem.modifiers?.filter(m => !updatedModifierIds.has(m.modifier_id)) || [];
+      
+      if (addedModifiers.length > 0) {
+        console.log('Added modifiers:', addedModifiers.map(m => m.modifier_name));
+      }
+      if (removedModifiers.length > 0) {
+        console.log('Removed modifiers:', removedModifiers.map(m => m.modifier_name));
+      }
+      console.log('=== End Modifier Update ===');
+    }
+    setEditingItem(null);
+    setEditingIndex(-1);
+  };
 
-    loadExistingOrder();
-  }, [tableId, setCart, items]);
+  const handleCancelEdit = () => {
+    setEditingItem(null);
+    setEditingIndex(-1);
+  };
+
+  const handleDeleteEdit = () => {
+    if (editingIndex >= 0) {
+      const newCart = cart.filter((_, index) => index !== editingIndex);
+      setCart(newCart);
+    }
+    setEditingItem(null);
+    setEditingIndex(-1);
+  };
 
   // Save Order Handler
   const handleSave = async () => {
@@ -91,6 +108,14 @@ function Orders() {
     setSaveError(null);
 
     try {
+      // Debug: Log cart state before saving
+      console.log('=== SAVING ORDER ===');
+      console.log('Cart state before saving:', cart);
+      cart.forEach((item, index) => {
+        console.log(`Item ${index}: ${item.title} - Modifiers:`, item.modifiers || []);
+      });
+      console.log('=== END CART STATE ===');
+
       // Step 1: Validate cart items
 
       // check id item doesnt have id or price
@@ -136,6 +161,8 @@ function Orders() {
 
       // Delete existing order items and insert updated cart
       await supabase.from("order_items").delete().eq("order_id", orderId);
+      
+      // Insert order items and collect their IDs for modifiers
       const orderItems = cart.map((item) => ({
         order_id: orderId,
         item_id: item.item_id,
@@ -143,11 +170,59 @@ function Orders() {
         price_each: item.price,
         note: item.note || null,
       }));
-      const { error: itemsError } = await supabase
+      
+      const { data: insertedItems, error: itemsError } = await supabase
         .from("order_items")
-        .insert(orderItems);
+        .insert(orderItems)
+        .select("order_item_id, item_id");
+        
       if (itemsError)
         throw new Error(`Failed to save order items: ${itemsError.message}`);
+
+      // Save modifiers for each order item
+      if (insertedItems) {
+        for (let i = 0; i < insertedItems.length; i++) {
+          const insertedItem = insertedItems[i];
+          const cartItem = cart[i]; // Use index instead of finding by item_id
+          
+          if (cartItem?.modifiers && cartItem.modifiers.length > 0) {
+            console.log(`Saving ${cartItem.modifiers.length} modifiers for item: ${cartItem.title}`);
+            
+            const orderItemModifiers = cartItem.modifiers.map(modifier => ({
+              order_item_id: insertedItem.order_item_id,
+              modifier_id: modifier.modifier_id,
+              quantity: modifier.quantity || 1
+            }));
+            
+            console.log('Modifiers to save:', orderItemModifiers);
+            
+            const { error: modifiersError } = await supabase
+              .from("order_item_modifiers")
+              .insert(orderItemModifiers);
+              
+            if (modifiersError) {
+              console.error("Error saving modifiers:", modifiersError);
+              console.error("Failed modifiers data:", orderItemModifiers);
+            } else {
+              console.log(`Successfully saved ${orderItemModifiers.length} modifiers for item: ${cartItem.title}`);
+            }
+          } else {
+            console.log(`No modifiers to save for item: ${cartItem?.title || 'unknown'}`);
+          }
+        }
+      } else {
+        console.log('No inserted items found, cannot save modifiers');
+      }
+
+      // Step 4: Update table status to 'occupied'
+      const { error: updateTableError } = await supabase
+        .from("tables")
+        .update({ status: "occupied" })
+        .eq("table_id", tableId);
+
+      if (updateTableError) {
+        throw new Error(`Failed to update table status: ${updateTableError.message}`);
+      }
 
       // Clear cart and navigate back
       setCart([]);
@@ -158,6 +233,61 @@ function Orders() {
       setSaving(false);
     }
     navigate("/tables");
+  };
+
+  // Close Order Handler
+  const handleClose = async () => {
+    if (!tableId) return;
+
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      // Step 1: Find existing order for this table
+      const { data: existingOrder, error: orderError } = await supabase
+        .from("customer_orders")
+        .select("order_id")
+        .eq("table_id", tableId)
+        .in("status", ["preparing", "ready"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (orderError && orderError.code !== "PGRST116") { // PGRST116 is "no rows"
+        throw new Error(`Failed to fetch order: ${orderError.message}`);
+      }
+
+      // Step 2: Update order status to 'closed' if order exists
+      if (existingOrder) {
+        const { error: updateOrderError } = await supabase
+          .from("customer_orders")
+          .update({ status: "closed" })
+          .eq("order_id", existingOrder.order_id);
+
+        if (updateOrderError) {
+          throw new Error(`Failed to close order: ${updateOrderError.message}`);
+        }
+      }
+
+      // Step 3: Update table status to 'available'
+      const { error: updateTableError } = await supabase
+        .from("tables")
+        .update({ status: "available" })
+        .eq("table_id", tableId);
+
+      if (updateTableError) {
+        throw new Error(`Failed to update table status: ${updateTableError.message}`);
+      }
+
+      // Step 4: Clear cart and navigate back
+      setCart([]);
+      navigate("/tables");
+    } catch (e: any) {
+      setSaveError(e.message);
+      console.error("Error closing order:", e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Render with Error Boundary
@@ -181,6 +311,8 @@ function Orders() {
           saving={saving}
           onSave={handleSave} 
           onBack={navigateBack}
+          onClose={handleClose}
+          onEdit={handleEditItem}
         />
         <CategoriesPanel
           categories={categories}
@@ -198,6 +330,10 @@ function Orders() {
           setSearch={setSearch}
           selectedCategory={selectedCategory}
           addItemToCart={(item) => addItemToCart(cart, setCart, item)}
+          editingItem={editingItem}
+          onSaveEdit={handleSaveEdit}
+          onCancelEdit={handleCancelEdit}
+          onDeleteEdit={handleDeleteEdit}
         />
       </div>
     </div>

@@ -1,23 +1,13 @@
 import TableButton from "./TableButton";
-
-interface TableStatus {
-  number: number;
-  isOccupied: boolean;
-}
+import { type TableRow } from "../../../../utils/tableUtils";
 
 interface Props {
-  tables: number[];
+  tables: TableRow[];
   onTableClick: (number: number) => void;
-  highlightedTables?: TableStatus[];
   selectedTable?: number;
 }
 
-function TableGrid({
-  tables,
-  onTableClick,
-  highlightedTables = [],
-  selectedTable,
-}: Props) {
+function TableGrid({ tables, onTableClick }: Props) {
   return (
     <div
       style={{
@@ -32,19 +22,16 @@ function TableGrid({
         gap: "50px",
       }}
     >
-      {tables.map((num) => {
-        const tableStatus = highlightedTables.find(
-          (table) => table.number === num
-        );
-        const isOccupied = tableStatus?.isOccupied ?? false;
-        const isSelected = selectedTable === num;
+      {tables.map((table) => {
+        const isOccupied = table.isOccupied;
+        const hasPendingOrder = table.hasPendingOrder;
         return (
           <TableButton
-            key={num}
-            number={num}
+            key={table.id}
+            number={table.number}
             isOccupied={isOccupied}
-            isSelected={isSelected}
-            onClick={() => onTableClick(num)}
+            hasPendingOrder={hasPendingOrder}
+            onClick={() => onTableClick(table.number)}
           />
         );
       })}

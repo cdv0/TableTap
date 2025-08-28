@@ -1,8 +1,44 @@
+import { useTablesData } from "../../../../hooks/useTablesData";
+import { supabase } from "../../../../supabaseClient";
+
 interface Props {
   tableNumber: number;
+  orderId?: string;
+  itemNames: string[];
+  refreshOrders: () => void;
 }
 
-function OrderCard({ tableNumber }: Props) {
+function OrderCard({ tableNumber, orderId, itemNames, refreshOrders }: Props) {
+  const { navigateToOrders } = useTablesData();
+
+  const handleAccept = async () => {
+    if (orderId) {
+      const { error } = await supabase
+        .from("customer_orders")
+        .update({ status: "preparing" })
+        .eq("order_id", orderId);
+      if (error) console.error("Error accepting order:", error.message);
+      else {
+        // Refresh the orders data
+        await refreshOrders();
+      }
+    }
+  };
+
+  const handleDecline = async () => {
+    if (orderId) {
+      const { error } = await supabase
+        .from("customer_orders")
+        .update({ status: "closed" })
+        .eq("order_id", orderId);
+      if (error) console.error("Error declining order:", error.message);
+      else {
+        // Refresh the orders data
+        await refreshOrders();
+      }
+    }
+  };
+
   return (
     <div
       style={{
@@ -33,13 +69,19 @@ function OrderCard({ tableNumber }: Props) {
             cursor: "pointer",
             textDecoration: "underline",
           }}
+          onClick={() => navigateToOrders(tableNumber)}
         >
           edit
         </button>
       </div>
-      <p>test</p>
-      <p>test</p>
-      <p>test</p>
+      <div style={{ marginBottom: "10px" }}>
+        <p style={{ marginBottom: "5px", fontWeight: "600" }}>Items:</p>
+        {itemNames.map((itemName, index) => (
+          <p key={index} style={{ margin: "2px 0", paddingLeft: "10px" }}>
+            {itemName}
+          </p>
+        ))}
+      </div>
       <div style={{ display: "flex", gap: "40px", justifyContent: "center" }}>
         <button
           style={{
@@ -49,6 +91,7 @@ function OrderCard({ tableNumber }: Props) {
             width: "120px",
             fontWeight: 600,
           }}
+          onClick={handleAccept}
         >
           Accept
         </button>
@@ -60,6 +103,7 @@ function OrderCard({ tableNumber }: Props) {
             width: "120px",
             fontWeight: 600,
           }}
+          onClick={handleDecline}
         >
           Decline
         </button>
