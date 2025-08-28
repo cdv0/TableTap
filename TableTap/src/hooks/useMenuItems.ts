@@ -75,7 +75,7 @@ export function useMenuItems() {
               title: row.name,
               color: "gray",
               category: row.categories.name,
-              price: row.price,
+              price: Number(row.price) || 0,
               size: "regular",
               modifierGroups: modifierGroups?.map((mg: any) => mg.modifier_group) || [],
               modifiers: allModifiers,
