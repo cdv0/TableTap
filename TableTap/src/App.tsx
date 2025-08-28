@@ -8,6 +8,8 @@ import CreateOrg from "./pages/CreateOrg";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import Tables from "./pages/Tables/Tables";
 import Orders from "./pages/Orders/Orders";
+import PublicOrderPage from "./pages/OrderPage";     
+
 
 function App() {
   return (
@@ -22,6 +24,7 @@ function App() {
         <Route path="/assets" element={<Assets />} />
         <Route path="/tables" element={<Tables />} />
         <Route path="/tables/:tableId/orders" element={<Orders />} />
+        <Route path="/order/:tableId" element={<PublicOrderPage />} />
       </Routes>
     </Router>
   );
