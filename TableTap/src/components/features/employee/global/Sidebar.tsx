@@ -44,6 +44,15 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             </li>
             <li className="mb-3 border-bottom pb-2">
               <Link
+                to="/tables"
+                className="text-white text-decoration-none"
+                onClick={onClose}
+              >
+                Tables
+              </Link>
+            </li>
+            <li className="mb-3 border-bottom pb-2">
+              <Link
                 to="/catalog"
                 className="text-white text-decoration-none"
                 onClick={onClose}

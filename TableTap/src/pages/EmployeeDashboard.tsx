@@ -15,6 +15,10 @@ const EmployeeDashboard = () => {
     navigate("/tables");
   };
 
+  const navigateToCatalog = () => {
+    navigate("/catalog");
+  };
+
   return (
     <div
       className="d-flex flex-column"
@@ -36,6 +40,12 @@ const EmployeeDashboard = () => {
             color="#32ff7e"
             icon="icon"
             onClick={navigateToTables}
+          />
+          <NavCard
+            label="Catalog"
+            color="#ff6b6b"
+            icon="icon"
+            onClick={navigateToCatalog}
           />
         </div>
         {/* Right area */}

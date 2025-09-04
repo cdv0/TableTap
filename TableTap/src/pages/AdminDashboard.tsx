@@ -17,6 +17,10 @@ const AdminDashboard = () => {
     navigate("/tables")
   }
 
+  const navigateToCatalog = () => {
+    navigate("/catalog");
+  };
+
   return (
     <div
       className="d-flex flex-column"
@@ -38,6 +42,12 @@ const AdminDashboard = () => {
             color="#32ff7e" 
             icon="icon"
             onClick={navigateToTables} />
+          <NavCard
+            label="Catalog"
+            color="#ff6b6b"
+            icon="icon"
+            onClick={navigateToCatalog}
+          />
           <NavCard
             label="Assets"
             color="#ffc75f"

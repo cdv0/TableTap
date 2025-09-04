@@ -8,6 +8,7 @@ import CreateOrg from "./pages/CreateOrg";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import Tables from "./pages/Tables/Tables";
 import Orders from "./pages/Orders/Orders";
+import Catalog from "./pages/Catalog/Catalog";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/assets" element={<Assets />} />
         <Route path="/tables" element={<Tables />} />
         <Route path="/tables/:tableId/orders" element={<Orders />} />
+        <Route path="/catalog" element={<Catalog />} />
       </Routes>
     </Router>
   );
