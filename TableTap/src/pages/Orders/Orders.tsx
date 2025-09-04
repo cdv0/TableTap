@@ -112,7 +112,7 @@ function Orders() {
       console.log('=== SAVING ORDER ===');
       console.log('Cart state before saving:', cart);
       cart.forEach((item, index) => {
-        console.log(`Item ${index}: ${item.title} - Modifiers:`, item.modifiers || []);
+        console.log(`Item ${index}: ${item.title} - Price: ${item.price} (type: ${typeof item.price}) - Modifiers:`, item.modifiers || []);
       });
       console.log('=== END CART STATE ===');
 
@@ -163,13 +163,20 @@ function Orders() {
       await supabase.from("order_items").delete().eq("order_id", orderId);
       
       // Insert order items and collect their IDs for modifiers
-      const orderItems = cart.map((item) => ({
-        order_id: orderId,
-        item_id: item.item_id,
-        quantity: item.count,
-        price_each: item.price,
-        note: item.note || null,
-      }));
+      const orderItems = cart.map((item) => {
+        const priceValue = Number(item.price) || 0;
+        console.log(`Item: ${item.title}, Original price: ${item.price} (${typeof item.price}), Converted price: ${priceValue} (${typeof priceValue})`);
+        return {
+          order_id: orderId,
+          item_id: item.item_id,
+          quantity: item.count,
+          price_each: priceValue, // Store as decimal (float)
+          note: item.note || null,
+        };
+      });
+      
+      console.log('Order items to insert:', orderItems);
+      console.log('Price types in orderItems:', orderItems.map(item => ({ title: item.item_id, price: item.price_each, type: typeof item.price_each })));
       
       const { data: insertedItems, error: itemsError } = await supabase
         .from("order_items")

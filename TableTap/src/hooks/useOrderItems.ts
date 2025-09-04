@@ -70,7 +70,7 @@ export function useOrderItems(tableId: string | undefined, setSaveError: (error:
               title: row.menu_items.name,
               color: "gray",
               category: row.menu_items.categories.name,
-              price: row.price_each,
+              price: Number(row.price_each) || 0, // Store as decimal (float)
               count: row.quantity,
               note: row.note,
               modifiers: cartModifiers, // Load actual modifiers from database

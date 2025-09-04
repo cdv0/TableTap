@@ -1,13 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "../components/features/employee/global/Navbar";
 import Sidebar from "../components/features/employee/global/Sidebar";
 import { GoPencil } from "react-icons/go";
 import { FaPlus } from "react-icons/fa6";
-import { IoTrashOutline } from "react-icons/io5";
-import { IoClose, IoCheckmark } from "react-icons/io5";
+import { IoTrashOutline, IoClose, IoCheckmark } from "react-icons/io5";
 import AddItemSidebar from "../components/features/employee/assets/OverlaySidebar/AddItemSidebar";
-import { supabase } from "../supabaseClient";
-import { useEffect } from "react";
+import {
+  selectCategories,
+  insertCategory,
+  updateCategoryName,
+  deleteCategoryCascade,
+} from "../services/Categories";
+import {
+  selectModifierGroups,
+  insertModifierGroup,
+  updateModifierGroupName,
+  deleteModifierGroupCascade,
+} from "../services/ModifierGroups";
+import {
+  selectModifiersByGroupIds,
+  insertModifier,
+  updateModifierName,
+  deleteModifierById,
+} from "../services/Modifiers";
+import {
+  selectMenuItems,
+  deleteMenuItemCascade
+} from "../services/MenuItems"
+import { useOrganizationId } from "../hooks/useOrganizationId";
+import { useDbCategories } from "../hooks/useDbCategories";
+import { useModifierGroups } from "../hooks/useModifierGroups";
+import { useModifiersByGroup } from "../hooks/useModifiers";
+
+interface ModifierGroup {
+  modifier_group_id: string;
+  name: string;
+}
 
 const Assets = () => {
   //Left sidebar state
@@ -15,6 +43,8 @@ const Assets = () => {
 
   // Right sidebar state
   const [overlaySidebarOpen, setOverlaySidebarOpen] = useState(false);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   // Fetch data from Supabase
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -35,7 +65,7 @@ const Assets = () => {
   // Add modifier group
   const [isAddingModifierGroup, setisAddingModifierGroup] = useState(false);
   const [newModifierGroup, setNewModifierGroup] = useState(""); // Temporarily store the draft input new modifier group value
-  const [modifierGroups, setModifierGroups] = useState<any[]>([]); // The array of all modifier groups from Supabase
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([]); // The array of all modifier groups from Supabase
   // Delete modifier groups (and all modifiers)
   const [deleteModifierGroupIds, setDeleteModifierGroupIds] = useState<string | null>(null);
 
@@ -58,62 +88,91 @@ const Assets = () => {
   // Delete modifier
   const [deleteModifierId, setDeleteModifierId] = useState<string | null>(null);
 
-  // Event Handlers
-  // Fetch the organization id
+  // Menu items
+  const [menuItemsByCategory, setMenuItemsByCategory] = useState<Record<string, any[]>>({});
+  const [deleteMenuItemId, setDeleteMenuItemId] = useState<string | null>(null);
+  const [editingMenuItem, setEditingMenuItem] = useState<any | null>(null);
+
+  // useEffect hooks
+  useOrganizationId(setOrganizationId);
+  useDbCategories(organizationId, setCategories);
+  useModifierGroups(organizationId, setModifierGroups);
+  useModifiersByGroup(modifierGroups, setModifiersByGroup);
+
   useEffect(() => {
-    const fetchOrgId = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        console.error("No logged-in user.");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("employee")
-        .select("organization_id")
-        .eq("employee_id", user.id)
-        .single(); // Expect only one row back
-
-      if (error) {
-        console.error("Error fetching organization ID:", error.message);
+    const refreshMenuItems = async () => {
+      if (!organizationId) return;
+      const { data, error } = await selectMenuItems(organizationId);
+      if (!error) {
+        const grouped: Record<string, any[]> = {};
+        (data ?? []).forEach((it: any) => {
+          const key = it.category_id;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(it);
+        });
+        setMenuItemsByCategory(grouped);
       } else {
-        setOrganizationId(data.organization_id);
+        console.error("Failed to fetch menu items:", (error as any).message);
       }
     };
-
-    fetchOrgId();
-  }, []);
-
-  // Fetch all of the organization's categories
-  const fetchCategories = async () => {
-    if (!organizationId) return;
-    const { data, error } = await supabase.from("categories").select("*").eq("organization_id", organizationId);
-    if (!error) setCategories(data ?? []);
-  };
-
-  useEffect(() => {
-    fetchCategories();
+    refreshMenuItems();
   }, [organizationId]);
 
-  // Handle Add Category
-  const handleAddCategory = async (name: string, organizationId: string) => {
-    const { data, error } = await supabase.from("categories").insert([
-      {
-        name: name,
-        organization_id: organizationId,
-      },
-    ]);
+  // HELPER FUNCTIONS
 
+  // Handle delete menu item
+  const handleDeleteMenuItem = async (itemId: string) => {
+    setDeleteMenuItemId(itemId);
+    try {
+      const { error } = await deleteMenuItemCascade(itemId);
+      if (error) throw error;
+      if (organizationId) {
+        const { data, error: err2 } = await selectMenuItems(organizationId);
+        if (!err2) {
+          const grouped: Record<string, any[]> = {};
+          (data ?? []).forEach((it: any) => {
+            const key = it.category_id;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(it);
+          });
+          setMenuItemsByCategory(grouped);
+        }
+      }
+    } catch (e: any) {
+      console.error(e?.message || e);
+    } finally {
+      setDeleteMenuItemId(null);
+    }
+  };
+
+  // Handle Add Category
+  const handleAddCategory = async (name: string, orgId: string) => {
+    const { error } = await insertCategory(name, orgId);
     if (error) {
       console.error("Error adding category:", error.message);
-    } else {
-      console.log("Category added:", data);
-      fetchCategories(); // Refetch after adding
-      setNewCategory("");
-      setIsAddingCategory(false);
+      return;
     }
+    if (organizationId) {
+      const { data: list, error: listErr } = await selectCategories(organizationId);
+      if (!listErr) setCategories(list ?? []);
+    }
+    setNewCategory("");
+    setIsAddingCategory(false);
+  };
+
+  // Save edit category
+  const saveEditCategory = async () => {
+    if (!organizationId || !editingCategoryId) return;
+    const { error } = await updateCategoryName(organizationId, editingCategoryId, editCategoryName);
+    if (error) {
+      console.error("Update category failed:", error.message);
+      return;
+    }
+    if (organizationId) {
+      const { data: list, error: listErr } = await selectCategories(organizationId);
+      if (!listErr) setCategories(list ?? []);
+    }
+    cancelEditCategory();
   };
 
   // Handle Delete Categories and Category items (children first, then parent)
@@ -122,29 +181,21 @@ const Assets = () => {
       console.error("Delete category: No organization ID detected.");
       return;
     }
-
     setDeleteCategoryIds(categoryId);
-
     try {
-      // Delete menu items first (child table)
-      const { error: itemsError } = await supabase
-        .from("menu_items")
-        .delete()
-        .eq("category_id", categoryId)
-        .eq("organization_id", organizationId);
-
-      if (itemsError) throw itemsError;
-
-      // Delete the category (parent)
-      const { error: catError } = await supabase
-        .from("categories")
-        .delete()
-        .eq("category_id", categoryId)
-        .eq("organization_id", organizationId);
-
-      if (catError) throw catError;
-
-      await fetchCategories();
+      await deleteCategoryCascade(organizationId, categoryId);
+      const { data: list, error: listErr } = await selectCategories(organizationId);
+      if (!listErr) setCategories(list ?? []);
+      const { data, error } = await selectMenuItems(organizationId);
+      if (!error) {
+        const grouped: Record<string, any[]> = {};
+        (data ?? []).forEach((it: any) => {
+          const key = it.category_id;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(it);
+        });
+        setMenuItemsByCategory(grouped);
+      }
     } catch (err: any) {
       console.error(err?.message || err);
     } finally {
@@ -152,61 +203,63 @@ const Assets = () => {
     }
   };
 
-  // Fetch modifiers
-  const fetchModifiers = async () => {
-    if (!modifierGroups || modifierGroups.length === 0) {
-      setModifiersByGroup({});
-      return;
-    }
+  // Inline edit handlers: Categories
+  const startEditCategory = (cat: any) => {
+    setEditingCategoryId(cat.category_id);
+    setEditCategoryName(cat.name ?? "");
+  };
+  const cancelEditCategory = () => {
+    setEditingCategoryId(null);
+    setEditCategoryName("");
+  };
 
-    const groupIds = modifierGroups
-      .map((g) => g.modifier_group_id)
-      .filter(Boolean);
-
-    const { data, error } = await supabase
-      .from("modifier")
-      .select("*")
-      .in("modifier_group_id", groupIds);
-
+  // Handle Add Modifier (submit)
+  const handleAddModifier = async (name: string, mGroupId: string) => {
+    const trimmed = name.trim();
+    const { error } = await insertModifier(trimmed, mGroupId);
     if (error) {
-      console.error("Failed to fetch modifiers:", error.message);
+      console.error("Error adding modifier:", error.message);
       return;
     }
 
-    const grouped: Record<string, any[]> = {};
-    (data ?? []).forEach((m: any) => {
-      const key = m.modifier_group_id;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(m);
-    });
-    setModifiersByGroup(grouped);
+    const ids = modifierGroups.map((g) => g.modifier_group_id).filter(Boolean);
+    const { data, error: mErr } = await selectModifiersByGroupIds(ids);
+    if (!mErr) {
+      const grouped: Record<string, any[]> = {};
+      (data ?? []).forEach((m: any) => {
+        const key = m.modifier_group_id;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(m);
+      });
+      setModifiersByGroup(grouped);
+    }
+
+    setNewModifier("");
+    setIsAddingModifier(false);
+    setModifierGroupId(null);
   };
 
-  // Edit modifier handlers
-  const startEditModifier = (mod: any) => {
-    setEditingModifierId(mod.modifier_id);
-    setEditModifierName(mod.name ?? "");
-  };
-
-  const cancelEditModifier = () => {
-    setEditingModifierId(null);
-    setEditModifierName("");
-  };
-
+  // Save edit modifier
   const saveEditModifier = async () => {
     if (!editingModifierId) return;
-
-    const { error } = await supabase
-      .from("modifier")
-      .update({ name: editModifierName })
-      .eq("modifier_id", editingModifierId);
-
+    const { error } = await updateModifierName(editingModifierId, editModifierName);
     if (error) {
       console.error("Update modifier failed:", error.message);
       return;
     }
 
-    await fetchModifiers();
+    const ids = modifierGroups.map((g) => g.modifier_group_id).filter(Boolean);
+    const { data, error: mErr } = await selectModifiersByGroupIds(ids);
+    if (!mErr) {
+      const grouped: Record<string, any[]> = {};
+      (data ?? []).forEach((m: any) => {
+        const key = m.modifier_group_id;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(m);
+      });
+      setModifiersByGroup(grouped);
+    }
+
     cancelEditModifier();
   };
 
@@ -216,148 +269,26 @@ const Assets = () => {
       console.error("Delete modifier: No modifier ID detected.");
       return;
     }
-
     setDeleteModifierId(modId);
-
     try {
-      const { error: modError } = await supabase
-        .from("modifier")
-        .delete()
-        .eq("modifier_id", modId);
-
+      const { error: modError } = await deleteModifierById(modId);
       if (modError) throw modError;
 
-      await fetchModifiers();
+      const ids = modifierGroups.map((g) => g.modifier_group_id).filter(Boolean);
+      const { data, error: mErr } = await selectModifiersByGroupIds(ids);
+      if (!mErr) {
+        const grouped: Record<string, any[]> = {};
+        (data ?? []).forEach((m: any) => {
+          const key = m.modifier_group_id;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(m);
+        });
+        setModifiersByGroup(grouped);
+      }
     } catch (err: any) {
       console.error(err?.message || err);
     } finally {
       setDeleteModifierId(null);
-    }
-  };
-
-  // Inline edit handlers: Categories
-  const startEditCategory = (cat: any) => {
-    setEditingCategoryId(cat.category_id);
-    setEditCategoryName(cat.name ?? "");
-  };
-
-  const cancelEditCategory = () => {
-    setEditingCategoryId(null);
-    setEditCategoryName("");
-  };
-
-  const saveEditCategory = async () => {
-    if (!organizationId || !editingCategoryId) return;
-    const { error } = await supabase
-      .from("categories")
-      .update({ name: editCategoryName })
-      .eq("category_id", editingCategoryId)
-      .eq("organization_id", organizationId);
-    if (error) {
-      console.error("Update category failed:", error.message);
-      return;
-    }
-    await fetchCategories();
-    cancelEditCategory();
-  };
-
-  // Fetch all of the organization's modifier groups (scoped by org)
-  const fetchModifierGroups = async () => {
-    if (!organizationId) return;
-    const { data, error } = await supabase.from("modifier_group").select("*").eq("organization_id", organizationId);
-    if (!error) {
-      setModifierGroups(data ?? []);
-    } else {
-      console.error("Failed to fetch modifier groups:", error.message);
-    }
-  };
-
-  useEffect(() => {
-    fetchModifierGroups();
-  }, [organizationId]);
-
-  // Whenever modifierGroups change, (re)load their modifiers
-  useEffect(() => {
-    if (modifierGroups && modifierGroups.length > 0) {
-      fetchModifiers();
-    } else {
-      setModifiersByGroup({});
-    }
-  }, [modifierGroups]);
-
-  // Handle Delete Modifier Groups and Modifiers (children first, then parent)
-  const handleDeleteModifierGroupsAndModifers = async (modifierGroupId: string) => {
-    if (!organizationId) {
-      console.error("Delete modifier group: No organization ID detected.");
-      return;
-    }
-
-    setDeleteModifierGroupIds(modifierGroupId);
-
-    try {
-      // Delete modifiers first (child table). Note: no org filter here because `modifier` has no org column.
-      const { error: itemsError } = await supabase.from("modifier").delete().eq("modifier_group_id", modifierGroupId);
-
-      if (itemsError) throw itemsError;
-
-      // Delete the modifier group (parent)
-      const { error: modifierError } = await supabase
-        .from("modifier_group")
-        .delete()
-        .eq("modifier_group_id", modifierGroupId)
-        .eq("organization_id", organizationId);
-
-      if (modifierError) throw modifierError;
-
-      await fetchModifierGroups();
-      // fetchModifiers will run via the effect above when groups update
-    } catch (err: any) {
-      console.error(err?.message || err);
-    } finally {
-      setDeleteModifierGroupIds(null);
-    }
-  };
-
-  // Handle Add Modifier (submit)
-  const handleAddModifier = async (name: string, mGroupId: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-
-    const { error } = await supabase.from("modifier").insert([
-      {
-        name: trimmed,
-        modifier_group_id: mGroupId,
-      },
-    ]);
-
-    if (error) {
-      console.error("Error adding modifier:", error.message);
-    } else {
-      // refresh modifiers for all groups so the UI re-renders the new one
-      await fetchModifiers();
-
-      setNewModifier("");
-      setIsAddingModifier(false);
-      setModifierGroupId(null);
-    }
-  };
-
-  // Handle Add Modifier Group
-  const handleAddModifierGroup = async (name: string, organizationId: string) => {
-    const { data, error } = await supabase.from("modifier_group").insert([
-      {
-        name: name,
-        organization_id: organizationId,
-      },
-    ]);
-
-    if (error) {
-      console.error("Error adding modifier group:", error.message);
-    } else {
-      console.log("Modifier group added:", data);
-      fetchModifierGroups(); // Refetch after adding
-      setNewModifierGroup("");
-      setisAddingModifierGroup(false);
     }
   };
 
@@ -366,25 +297,73 @@ const Assets = () => {
     setEditingModifierGroupId(group.modifier_group_id);
     setEditModifierGroupName(group.name ?? "");
   };
-
   const cancelEditModifierGroup = () => {
     setEditingModifierGroupId(null);
     setEditModifierGroupName("");
   };
 
+  // Handle Add Modifier Group
+  const handleAddModifierGroup = async (name: string, orgId: string) => {
+    const { error } = await insertModifierGroup(name, orgId);
+    if (error) {
+      console.error("Error adding modifier group:", error.message);
+      return;
+    }
+
+    if (organizationId) {
+      const { data: groups, error: gErr } = await selectModifierGroups(organizationId);
+      if (!gErr) setModifierGroups(groups ?? []);
+    }
+
+    setNewModifierGroup("");
+    setisAddingModifierGroup(false);
+  };
+
+  // Save edit modifier group
   const saveEditModifierGroup = async () => {
     if (!organizationId || !editingModifierGroupId) return;
-    const { error } = await supabase
-      .from("modifier_group")
-      .update({ name: editModifierGroupName })
-      .eq("modifier_group_id", editingModifierGroupId)
-      .eq("organization_id", organizationId);
+    const { error } = await updateModifierGroupName(
+      organizationId,
+      editingModifierGroupId,
+      editModifierGroupName
+    );
     if (error) {
       console.error("Update modifier group failed:", error.message);
       return;
     }
-    await fetchModifierGroups();
+
+    const { data: groups, error: gErr } = await selectModifierGroups(organizationId);
+    if (!gErr) setModifierGroups(groups ?? []);
+
     cancelEditModifierGroup();
+  };
+
+  // Handle Delete Modifier Groups and Modifiers (children first, then parent)
+  const handleDeleteModifierGroupsAndModifers = async (mGroupId: string) => {
+    if (!organizationId) {
+      console.error("Delete modifier group: No organization ID detected.");
+      return;
+    }
+    setDeleteModifierGroupIds(mGroupId);
+    try {
+      await deleteModifierGroupCascade(organizationId, mGroupId);
+      const { data: groups, error: gErr } = await selectModifierGroups(organizationId);
+      if (!gErr) setModifierGroups(groups ?? []);
+    } catch (err: any) {
+      console.error(err?.message || err);
+    } finally {
+      setDeleteModifierGroupIds(null);
+    }
+  };
+
+  // Edit modifier handlers
+  const startEditModifier = (mod: any) => {
+    setEditingModifierId(mod.modifier_id);
+    setEditModifierName(mod.name ?? "");
+  };
+  const cancelEditModifier = () => {
+    setEditingModifierId(null);
+    setEditModifierName("");
   };
 
   // Category section renderer
@@ -485,13 +464,46 @@ const Assets = () => {
                     <IoTrashOutline style={{ fontSize: "18px", opacity: deleteCategoryIds === group.category_id ? 0.5 : 1 }} />
                   </button>
 
-                  <button className="btn btn-sm border-0" onClick={() => setOverlaySidebarOpen(true)}>
+                  <button
+                    className="btn btn-sm border-0"
+                    onClick={() => { setSelectedCategoryId(group.category_id); setEditingMenuItem(null); setOverlaySidebarOpen(true); }}
+                  >
                     <FaPlus style={{ fontSize: "18px" }} />
                   </button>
                 </div>
               </>
             )}
           </div>
+
+          {(menuItemsByCategory[group.category_id] ?? []).map((item) => (
+            <div
+              key={item.item_id}
+              className="d-flex justify-content-between align-items-start border rounded px-3 py-3 mb-2"
+              style={{ backgroundColor: "#fff" }}
+            >
+              <div className="fw-bold text-danger">
+                {item.name}
+              </div>
+              <div>
+                <button
+                  className="btn btn-sm border-0 me-2"
+                  onClick={() => { setEditingMenuItem(item); setSelectedCategoryId(item.category_id); setOverlaySidebarOpen(true); }}
+                  title="Edit menu item"
+                >
+                  <GoPencil style={{ fontSize: "18px" }} />
+                </button>
+
+                <button
+                  className="btn btn-sm border-0 me-2"
+                  onClick={() => handleDeleteMenuItem(item.item_id)}
+                  disabled={deleteMenuItemId === item.item_id}
+                  title="Delete menu item"
+                >
+                  <IoTrashOutline style={{ fontSize: "18px", opacity: deleteMenuItemId === item.item_id ? 0.5 : 1 }} />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       ))}
     </>
@@ -603,10 +615,10 @@ const Assets = () => {
                   <button
                     className="btn btn-sm border-0"
                     onClick={() => {
+                      // open the inline input for THIS group
                       setIsAddingModifier(true);
                       setModifierGroupId(group.modifier_group_id);
                       setNewModifier("");
-                      fetchModifiers(); // ensure latest list before adding
                     }}
                     title="Add modifier"
                   >
@@ -683,11 +695,11 @@ const Assets = () => {
                   placeholder="Add modifier"
                   value={newModifier}
                   onChange={(e) => setNewModifier(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" &&
-                    modifierGroupId &&
-                    handleAddModifier(newModifier, modifierGroupId)
-                  }
+                  onKeyDown={async (e) => {
+                    if (e.key === "Enter" && modifierGroupId) {
+                      await handleAddModifier(newModifier, modifierGroupId);
+                    }
+                  }}
                   autoFocus
                 />
                 <label htmlFor={`addModifier-${group.modifier_group_id}`}>Add modifier</label>
@@ -713,12 +725,12 @@ const Assets = () => {
                   className="btn border-0 bg-transparent"
                   type="submit"
                   id="SubmitNewModifier"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!modifierGroupId) {
                       console.error("Modifier group ID not found.");
                       return;
                     }
-                    handleAddModifier(newModifier, modifierGroupId);
+                    await handleAddModifier(newModifier, modifierGroupId);
                   }}
                   title="Save"
                 >
@@ -732,7 +744,7 @@ const Assets = () => {
     </div>
   );
 
-  {/* Return TSX */}
+  // Return TSX
   return (
     <div className="d-flex flex-column" style={{ height: "100vh" }}>
       {/* Global Header & Navigation Sidebar*/}
@@ -785,7 +797,40 @@ const Assets = () => {
           <div id="modifierGroups">{renderModifiers()}</div>
 
           {/* Close overlay sidebar when it's open */}
-          {overlaySidebarOpen && <AddItemSidebar onClose={() => setOverlaySidebarOpen(false)}></AddItemSidebar>}
+          {overlaySidebarOpen && (
+            <AddItemSidebar
+              onClose={() => {
+                setOverlaySidebarOpen(false);
+                setSelectedCategoryId(null);
+                setEditingMenuItem(null);
+              }}
+              categoryId={selectedCategoryId}
+              modifierGroups={modifierGroups}
+              organizationId={organizationId}
+              existingItem={editingMenuItem}
+              onSaved={async () => {
+                if (!organizationId) {
+                  setOverlaySidebarOpen(false);
+                  setSelectedCategoryId(null);
+                  setEditingMenuItem(null);
+                  return;
+                }
+                const { data, error } = await selectMenuItems(organizationId);
+                if (!error) {
+                  const grouped: Record<string, any[]> = {};
+                  (data ?? []).forEach((it: any) => {
+                    const key = it.category_id;
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(it);
+                  });
+                  setMenuItemsByCategory(grouped);
+                }
+                setOverlaySidebarOpen(false);
+                setSelectedCategoryId(null);
+                setEditingMenuItem(null);
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
