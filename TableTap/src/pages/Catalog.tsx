@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../supabaseClient";
-import Navbar from "../../components/features/employee/global/Navbar";
-import Sidebar from "../../components/features/employee/global/Sidebar";
+import { supabase } from "../supabaseClient";
+import Navbar from "../components/features/employee/global/Navbar";
+import Sidebar from "../components/features/employee/global/Sidebar";
 import "./Catalog.css";
 
 interface OrderItem {
@@ -43,9 +43,8 @@ function Catalog() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showPopup, setShowPopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState("");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Fetch closed orders
+  // Fetch closed orders from Supabase
   useEffect(() => {
     const fetchClosedOrders = async () => {
       try {
@@ -84,7 +83,7 @@ function Catalog() {
           throw new Error(`Failed to fetch closed orders: ${error.message}`);
         }
 
-        // Transform the data to match interface
+        // Transform the data to match our interface
         const transformedData = (data || []).map((order: any) => ({
           order_id: order.order_id,
           table_id: order.table_id,
@@ -140,74 +139,6 @@ function Catalog() {
       minute: '2-digit',
       hour12: false 
     });
-  };
-
-  // Handle delete all closed orders
-  const handleDeleteAll = async () => {
-    try {
-      // get all closed order IDs
-      const { data: closedOrders, error: fetchError } = await supabase
-        .from("customer_orders")
-        .select("order_id")
-        .eq("status", "closed");
-
-      if (fetchError) {
-        throw new Error(`Failed to fetch closed orders: ${fetchError.message}`);
-      }
-
-      if (!closedOrders || closedOrders.length === 0) {
-        setOrders([]);
-        setSelectedOrder(null);
-        setShowDeleteConfirm(false);
-        return;
-      }
-
-      const orderIds = closedOrders.map(order => order.order_id);
-
-      // Delete order item modifiers first
-      const { error: deleteModifiersError } = await supabase
-        .from("order_item_modifiers")
-        .delete()
-        .in("order_item_id", 
-          await supabase
-            .from("order_items")
-            .select("order_item_id")
-            .in("order_id", orderIds)
-            .then(({ data }) => data?.map(item => item.order_item_id) || [])
-        );
-
-      if (deleteModifiersError) {
-        console.warn("Warning: Failed to delete some modifiers:", deleteModifiersError);
-      }
-
-      // Delete order items
-      const { error: deleteItemsError } = await supabase
-        .from("order_items")
-        .delete()
-        .in("order_id", orderIds);
-
-      if (deleteItemsError) {
-        throw new Error(`Failed to delete order items: ${deleteItemsError.message}`);
-      }
-
-      // delete the closed orders
-      const { error: deleteOrdersError } = await supabase
-        .from("customer_orders")
-        .delete()
-        .eq("status", "closed");
-
-      if (deleteOrdersError) {
-        throw new Error(`Failed to delete closed orders: ${deleteOrdersError.message}`);
-      }
-
-      // Clear the orders list
-      setOrders([]);
-      setSelectedOrder(null);
-      setShowDeleteConfirm(false);
-    } catch (err: any) {
-      setError(err.message);
-      console.error("Error deleting all closed orders:", err);
-    }
   };
 
   // Handle undo action (reopen order)
@@ -320,18 +251,6 @@ function Catalog() {
               ))
             )}
           </div>
-
-          {/* Delete All Button */}
-          {orders.length > 0 && (
-            <div className="delete-all-section">
-              <button 
-                className="delete-all-button"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                Delete All Closed Orders
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Right Panel - Order Details */}
@@ -399,34 +318,6 @@ function Catalog() {
                 onClick={() => setShowPopup(false)}
               >
                 OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete All Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="popup-overlay">
-          <div className="popup-content">
-            <div className="popup-header">
-              <h3>Confirm Delete All</h3>
-            </div>
-            <div className="popup-body">
-              <p>Are you sure you want to delete all closed orders? This action cannot be undone.</p>
-            </div>
-            <div className="popup-footer">
-              <button 
-                className="popup-button popup-button-cancel"
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="popup-button popup-button-danger"
-                onClick={handleDeleteAll}
-              >
-                Delete All
               </button>
             </div>
           </div>

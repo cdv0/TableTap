@@ -8,12 +8,8 @@ import CreateOrg from "./pages/CreateOrg";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import Tables from "./pages/Tables/Tables";
 import Orders from "./pages/Orders/Orders";
-<<<<<<< HEAD
 import Catalog from "./pages/Catalog/Catalog";
-=======
-import PublicOrderPage from "./pages/OrderPage";     
-
->>>>>>> main
+import PublicOrderPage from "./pages/OrderPage";
 
 function App() {
   return (
@@ -28,11 +24,8 @@ function App() {
         <Route path="/assets" element={<Assets />} />
         <Route path="/tables" element={<Tables />} />
         <Route path="/tables/:tableId/orders" element={<Orders />} />
-<<<<<<< HEAD
         <Route path="/catalog" element={<Catalog />} />
-=======
         <Route path="/order/:tableId" element={<PublicOrderPage />} />
->>>>>>> main
       </Routes>
     </Router>
   );
