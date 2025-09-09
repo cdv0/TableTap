@@ -18,6 +18,8 @@ const Signup = () => {
   const navigateLogin = () => {
     navigate("/");
   };
+
+  //comment when in production
   console.log(session);
 
   // used to fetch all the orgs from supabase database and import them into "orgs"
@@ -41,7 +43,7 @@ const Signup = () => {
         throw result.error;
       }
       
-       if (result.user) {
+      if (result.user) {
          const { error } = await supabase.from("employee").insert({
            employee_id: result.user.id,
            email: email,

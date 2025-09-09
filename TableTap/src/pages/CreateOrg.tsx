@@ -1,86 +1,75 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import { useAuth } from "../contexts/authContext";
 
 const CreateOrg = () => {
   const [orgName, setOrgName] = useState("");
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminName, setAdminName] = useState("");
-  const [pin, setPin] = useState("");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { session, signUpUser } = useAuth();
   const navigate = useNavigate();
 
-  const handleCreateOrg = async () => {
-    if (!orgName || !adminName || !adminEmail || !pin) {
+  const handleCreateOrg = async (e: any) => {
+    e.preventDefault();
+    if (!orgName || !name || !email || !password) {
       alert("All fields are required");
       return;
     }
 
-    if (!/^\d{6}$/.test(pin)) {
-      alert("PIN must be exactly 6 digits");
+    if (!/^\d{6}$/.test(password)) {
+      alert("Password must be exactly 6 digits");
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       alert("Invalid email format");
       return;
     }
-
+    setLoading(true);
     // sign up the user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: adminEmail,
-      password: pin,
-    });
+    try {
+      const result = await signUpUser({ email, password });
+        if (result.error) {
+          throw result.error;
+        }
 
-    // failed message
-    if (authError || !authData.user) {
-      alert("Signup failed: " + authError?.message);
-      return;
+        const { data: orgData, error: orgError } = await supabase
+          .from("organization")
+          .insert({
+            name: orgName,
+            email: email,
+            owner_id: result.user.id,
+          })
+          .select()
+          .single();  
+        if (orgError || !orgData) {
+          alert("Failed to create organization: " + orgError?.message);
+          return;
+        }
+
+        if (result.user) {
+          const { error } = await supabase.from("employee").insert({
+            employee_id: result.user.id,
+            email: email,
+            name: name,
+            role: "admin",
+            organization_id: orgData.org_id,
+          })
+        if (error) {
+          alert("Failed to create admin account: " + error.message);
+          return;
+        }
     }
-
-    // get the current session of the user and their ID
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData?.session?.user?.id;
-
-    // TODO: need to turn on email confirmation in supabase
-    if (!userId) {
-      alert("User not yet authenticated. Please confirm your email.");
-      return;
-    }
-
-    // inserts organization row into supabase with the owner
-    const { data: orgData, error: orgError } = await supabase
-      .from("organization")
-      .insert({
-        name: orgName,
-        email: adminEmail,
-        owner_id: userId,
-      })
-      .select()
-      .single();
-
-    // error message for org creation
-    if (orgError || !orgData) {
-      alert("Failed to create organization: " + orgError?.message);
-      return;
-    }
-
-    // inserts admin into employee table with their pin and approved status
-    const { error } = await supabase.from("employee").insert({
-      employee_id: userId,
-      name: adminName,
-      email: adminEmail,
-      pin: pin,
-      role: "admin",
-      status: "approved",
-      organization_id: orgData.org_id,
-    });
-    
-    // error message for employee creation
-    if (error) {
-      alert("Failed to create admin account: " + error.message);
-      return;
-    }
-
+    } catch (error) {
+      setError("Error signing up");
+      return alert("Something went wrong signing up.")
+    } finally {
+      setLoading(false)
+    };
     // navigates user when everything goes to plan
     alert("Organization and admin account created!");
     navigate("/admin-dashboard");
@@ -97,25 +86,25 @@ const CreateOrg = () => {
       />
       <input
         className="form-control mb-2"
-        placeholder="Admin Full Name"
-        value={adminName}
-        onChange={(e) => setAdminName(e.target.value)}
+        placeholder="Full Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
       />
       <input
         className="form-control mb-2"
-        placeholder="Admin Email"
+        placeholder="Email"
         type="Email"
-        value={adminEmail}
-        onChange={(e) => setAdminEmail(e.target.value)}
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
       />
       <input
         className="form-control mb-3"
         type="password"
-        maxLength={6}
-        inputMode="numeric"
-        placeholder="6-digit PIN"
-        value={pin}
-        onChange={(e) => setPin(e.target.value)}
+        // maxLength={6}
+        // inputMode="numeric"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
       />
       <button className="btn btn-primary" onClick={handleCreateOrg}>
         Create Organization
