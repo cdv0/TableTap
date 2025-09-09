@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../../contexts/authContext"
 
 interface SidebarProps {
   isOpen: boolean;
@@ -7,9 +8,16 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const navigate = useNavigate();
+  const { session, SignOutUser } = useAuth();
 
-  const handleLogout = () => {
-    onClose();
+  const handleSignout = async (e: any) => {
+    e.preventDefault();
+    try {
+      await SignOutUser();
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+    console.log("Signed out!")
     navigate("/");
   };
 
@@ -73,7 +81,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         </div>
 
         {/* Bottom: Log Out Button */}
-        <button className="btn btn-danger w-100 mt-3" onClick={handleLogout}>
+        <button className="btn btn-danger w-100 mt-3" onClick={handleSignout}>
           Log out
         </button>
       </div>

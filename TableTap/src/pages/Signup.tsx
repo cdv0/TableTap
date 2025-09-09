@@ -2,14 +2,23 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import Navbar from "../components/features/employee/global/Navbar";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/authContext";
 
 const Signup = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orgs, setOrgs] = useState<any[]>([]);
   const [email, setEmail] = useState("");
-  const [pin, setPin] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [orgId, setOrgId] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { session, signUpUser } = useAuth();
+  const navigate = useNavigate();
+  const navigateLogin = () => {
+    navigate("/");
+  };
+  console.log(session);
 
   // used to fetch all the orgs from supabase database and import them into "orgs"
   useEffect(() => {
@@ -21,93 +30,38 @@ const Signup = () => {
     fetchOrgs();
   }, []);
 
-  const navigate = useNavigate();
-
-  const navigateLogin = () => {
-    navigate("/");
-  };
-
   // handle signup from input data
-  const handleSignup = async () => {
-    if (!name) {
-      alert("Missing Name");
-      return;
-    } else if (!email) {
-      alert("Missing Email");
-      return;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      alert("Please enter a valid email");
-      return;
-    } else if (!pin) {
-      alert("Missing PIN");
-      return;
-    } else if (!/^\d{6}$/.test(pin)) {
-      alert("PIN must be exactly 6 digits");
-      return;
-    } else if (!orgId) {
-      alert("Please choose an Organization");
-      return;
+  const handleSignup = async (e: any) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const result = await signUpUser({ email, password });
+      if (result.user) {
+        navigate("/admin-dashboard");
+      }
+    } catch (error) {
+      setError("Error signing up");
+      return alert("Something went wrong signing up.");
+    } finally {
+      setLoading(false);
     }
-
-    const result = await supabase.auth.signUp({ email, password: pin });
-
-    if (result.error) return alert(result.error.message);
-
-    const user = result.data.user;
-
-    //  if (!user) {
-    //      alert("Check your email for the confirmation link to complete signup.");
-    //      return;
-    //  }
-
-    const { data: existing, error: checkError } = await supabase
-      .from("employee")
-      .select("employee_id")
-      .eq("email", email)
-      .maybeSingle();
-    if (checkError) {
-      console.error("Check failed:", checkError.message);
-      return alert("Something went wrong checking your data.");
-    }
-
-    if (existing) {
-      alert("Email Already Exists");
-      return;
-    }
-
-    const { data: pinExisting, error: pinCheckError } = await supabase
-      .from("employee")
-      .select("employee_id")
-      .eq("pin", pin)
-      .maybeSingle();
-    if (pinCheckError) {
-      console.error("Check failed:", pinCheckError.message);
-      return alert("Something went wrong checking your data.");
-    }
-
-    if (pinExisting) {
-      alert("PIN Already Exists");
-      return;
-    }
-
-    // insert user into employee table with pending status
-    const { error: insertError } = await supabase.from("employee").insert({
-      employee_id: user.id,
-      name: name,
-      email: email,
-      pin: pin,
-      role: "employee",
-      organization_id: orgId,
-      status: "pending",
-    });
-
-    if (insertError) {
-      console.error("Insert failed:", insertError.message);
-      return alert("Insert failed: " + insertError.message);
-    }
-
-    alert("Signup submitted. Await approval.");
   };
+
+  // insert user into employee table with pending status
+  // const { error: insertError } = await supabase.from("employee").insert({
+  //   employee_id: user.id,
+  //   name: name,
+  //   email: email,
+  //   password: password,
+  //   organization_id: orgId,
+  //   status: "pending",
+  // });
+
+  // if (insertError) {
+  //   console.error("Insert failed:", insertError.message);
+  //   return alert("Insert failed: " + insertError.message);
+  // };
 
   return (
     <div>
@@ -115,7 +69,7 @@ const Signup = () => {
         heading="Employee SignUp"
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       ></Navbar>
-      <div className="container mt-5 d-flex flex-column justify-content-center align-items-center">
+      {/* <div className="container mt-5 d-flex flex-column justify-content-center align-items-center">
         <div
           className="card p-4 shadow"
           style={{ maxWidth: "500px", width: "100%" }}
@@ -150,8 +104,8 @@ const Signup = () => {
               type="password"
               inputMode="numeric"
               placeholder="6-digit PIN"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
@@ -189,7 +143,39 @@ const Signup = () => {
         >
           ← Back
         </button>
-      </div>
+      </div> */}
+
+      <form onSubmit={handleSignup}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <label className="form-label">Select Organization</label>
+        <select
+          className="form-select"
+          value={orgId}
+          onChange={(e) => setOrgId(e.target.value)}
+        >
+          <option value="">Select Organization</option>
+          {orgs.map((org) => (
+            <option key={org.org_id} value={org.org_id}>
+              {org.name}
+            </option>
+          ))}
+        </select>
+        <button type="submit" disabled={loading}>
+          Signup
+        </button>
+        {error && <p>{error}</p>}
+      </form>
     </div>
   );
 };

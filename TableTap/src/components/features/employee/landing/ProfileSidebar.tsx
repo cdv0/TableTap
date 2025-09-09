@@ -1,14 +1,23 @@
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../../contexts/authContext";
 
 const ProfileSidebar = () => {
+  const { session, SignOutUser } = useAuth();
   const navigate = useNavigate();
 
   const handleCameraClick = () => {
     console.log("Camera clicked!");
     // TODO: Open file picker or modal
   };
-  const handleLogOut = () => {
-    navigate("/"); // TODO: implement logout auth
+  const handleSignout = async (e: any) => {
+    e.preventDefault();
+    try {
+      await SignOutUser();
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+    console.log("Signed out!")
+    navigate("/");
   };
 
   return (
@@ -34,9 +43,12 @@ const ProfileSidebar = () => {
       >
         <span style={{ fontSize: "2rem" }}>icon</span>
       </button>
+      <div>
+        Hello! {session?.user?.email}
+      </div>
 
       {/* log out button */}
-      <button className="btn btn-danger w-100 mt-4" onClick={handleLogOut}>
+      <button className="btn btn-danger w-100 mt-4" onClick={handleSignout}>
         Log out
       </button>
     </div>
