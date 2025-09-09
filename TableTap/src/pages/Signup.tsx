@@ -37,9 +37,28 @@ const Signup = () => {
 
     try {
       const result = await signUpUser({ email, password });
-      if (result.user) {
-        navigate("/admin-dashboard");
+      if (result.error) {
+        throw result.error;
       }
+      
+       if (result.user) {
+         const { error } = await supabase.from("employee").insert({
+           employee_id: result.user.id,
+           email: email,
+           name: name,
+           organization_id: orgId,
+           status: "pending",
+           role: "employee"
+         })
+         if (error) {
+           console.error("Insert failed:", error.message);
+           alert("Signup successful, but profile creation failed: " + error.message);
+         } else {
+           console.log("Employee record created successfully");
+         }
+         navigate("/admin-dashboard");
+       }
+
     } catch (error) {
       setError("Error signing up");
       return alert("Something went wrong signing up.");
@@ -145,37 +164,92 @@ const Signup = () => {
         </button>
       </div> */}
 
-      <form onSubmit={handleSignup}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <label className="form-label">Select Organization</label>
-        <select
-          className="form-select"
-          value={orgId}
-          onChange={(e) => setOrgId(e.target.value)}
-        >
-          <option value="">Select Organization</option>
-          {orgs.map((org) => (
-            <option key={org.org_id} value={org.org_id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
-        <button type="submit" disabled={loading}>
-          Signup
-        </button>
-        {error && <p>{error}</p>}
-      </form>
+       <div className="flex-grow-1 d-flex justify-content-center align-items-center bg-light">
+         <div className="card p-4 shadow" style={{ maxWidth: "500px", width: "100%" }}>
+           <h3 className="mb-4 text-center">Sign Up</h3>
+           
+           <form onSubmit={handleSignup}>
+             <div className="mb-3">
+               <label className="form-label">Full Name</label>
+               <input
+                 type="text"
+                 className="form-control"
+                 placeholder="Enter your full name"
+                 value={name}
+                 onChange={(e) => setName(e.target.value)}
+                 required
+               />
+             </div>
+
+             <div className="mb-3">
+               <label className="form-label">Email</label>
+               <input
+                 type="email"
+                 className="form-control"
+                 placeholder="Enter your email"
+                 value={email}
+                 onChange={(e) => setEmail(e.target.value)}
+                 required
+               />
+             </div>
+
+             <div className="mb-3">
+               <label className="form-label">Password</label>
+               <input
+                 type="password"
+                 className="form-control"
+                 placeholder="Enter your password"
+                 value={password}
+                 onChange={(e) => setPassword(e.target.value)}
+                 required
+               />
+             </div>
+
+             <div className="mb-4">
+               <label className="form-label">Select Organization</label>
+               <select
+                 className="form-select"
+                 value={orgId}
+                 onChange={(e) => setOrgId(e.target.value)}
+                 required
+               >
+                 <option value="">Select Organization</option>
+                 {orgs.map((org) => (
+                   <option key={org.org_id} value={org.org_id}>
+                     {org.name}
+                   </option>
+                 ))}
+               </select>
+             </div>
+
+             {error && <div className="alert alert-danger">{error}</div>}
+
+             <button 
+               type="submit" 
+               className="btn btn-primary w-100"
+               disabled={loading}
+             >
+               {loading ? "Signing up..." : "Sign Up"}
+             </button>
+           </form>
+
+           <div className="text-center mt-3">
+             <button
+               onClick={navigateLogin}
+               className="btn btn-outline-secondary"
+               style={{
+                 borderRadius: "20px",
+                 padding: "8px 24px",
+                 fontSize: "14px",
+                 fontWeight: "500",
+                 transition: "all 0.3s ease",
+               }}
+             >
+               ← Back to Login
+             </button>
+           </div>
+         </div>
+       </div>
     </div>
   );
 };

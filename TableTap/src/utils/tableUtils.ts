@@ -17,8 +17,8 @@ export type OpenOrder = {
 };
 
 // Fetch open orders directly from customer_orders and order_items
-export async function fetchOpenOrders(): Promise<OpenOrder[]> {
-  const { data, error } = await supabase
+export async function fetchOpenOrders(organizationId?: string): Promise<OpenOrder[]> {
+  let query = supabase
     .from("customer_orders")
     .select(`
       order_id,
@@ -28,9 +28,17 @@ export async function fetchOpenOrders(): Promise<OpenOrder[]> {
       order_items(
         item_id,
         menu_items(name)
-      )
+      ),
+      tables!inner(organization_id)
     `)
     .eq("status", "pending");
+
+  // Filter by organization if provided
+  if (organizationId) {
+    query = query.eq("tables.organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw new Error(`Failed to fetch open orders: ${error.message}`);
   if (!data) return [];
@@ -46,12 +54,19 @@ export async function fetchOpenOrders(): Promise<OpenOrder[]> {
   }));
 }
 
-// Fetch all tables
-export async function fetchAllTables(): Promise<TableRow[]> {
-  const { data, error } = await supabase
+// Fetch all tables for a specific organization
+export async function fetchAllTables(organizationId?: string): Promise<TableRow[]> {
+  let query = supabase
     .from("tables")
-    .select("table_id, table_number, status")
+    .select("table_id, table_number, status, organization_id")
     .order("table_number", { ascending: true });
+
+  // Filter by organization if provided
+  if (organizationId) {
+    query = query.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw new Error(`Failed to fetch tables: ${error.message}`);
   if (!data || data.length === 0) return [];

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchAllTables, fetchOpenOrders, type TableRow, type OpenOrder} from "../utils/tableUtils";
+import { useOrganizationId } from "./useOrganizationId";
 
 export function useTablesData() {
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
@@ -9,13 +10,23 @@ export function useTablesData() {
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Get the user's organization ID
+  useOrganizationId(setOrganizationId);
 
   // Fetch tables and open orders
   const fetchData = async () => {
+    if (!organizationId) {
+      console.log("No organization ID available yet");
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const [rows, orders] = await Promise.all([fetchAllTables(), fetchOpenOrders()]);
+      console.log("Fetching tables for organization:", organizationId);
+      const [rows, orders] = await Promise.all([fetchAllTables(organizationId), fetchOpenOrders(organizationId)]);
       setTables(rows);
       setOpenOrders(orders);
     } catch (e: any) {
@@ -27,12 +38,14 @@ export function useTablesData() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [organizationId]);
 
   // Refresh orders data
   const refreshOrders = async () => {
+    if (!organizationId) return;
+    
     try {
-      const orders = await fetchOpenOrders();
+      const orders = await fetchOpenOrders(organizationId);
       setOpenOrders(orders);
     } catch (e: any) {
       setError(e.message ?? String(e));
