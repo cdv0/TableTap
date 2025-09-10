@@ -4,7 +4,9 @@ import Sidebar from "../components/features/employee/global/Sidebar";
 import { GoPencil } from "react-icons/go";
 import { FaPlus } from "react-icons/fa6";
 import { IoTrashOutline, IoClose, IoCheckmark } from "react-icons/io5";
+import { FaTable } from "react-icons/fa6";
 import AddItemSidebar from "../components/features/employee/assets/OverlaySidebar/AddItemSidebar";
+import EditTablesOverlay from "../components/features/employee/assets/EditTablesOverlay";
 import {
   selectCategories,
   insertCategory,
@@ -44,7 +46,12 @@ const Assets = () => {
   // Right sidebar state
   const [overlaySidebarOpen, setOverlaySidebarOpen] = useState(false);
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  // Edit tables overlay state
+  const [editTablesOverlayOpen, setEditTablesOverlayOpen] = useState(false);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null
+  );
 
   // Fetch data from Supabase
   const [organizationId, setOrganizationId] = useState<string | null>(null);
@@ -119,6 +126,11 @@ const Assets = () => {
   }, [organizationId]);
 
   // HELPER FUNCTIONS
+
+  // Handle tables updated
+  const handleTablesUpdated = () => {
+    console.log("Tables updated successfully");
+  };
 
   // Handle delete menu item
   const handleDeleteMenuItem = async (itemId: string) => {
@@ -785,6 +797,19 @@ const Assets = () => {
                 </li>
               ))}
             </ul>
+            <hr></hr>
+            {/* Tables Management Section */}
+            <div className="">
+              <div className="d-flex align-items-center justify-content-center">
+                <button
+                  className="btn btn-outline-primary btn-sm d-flex align-items-center gap-2"
+                  onClick={() => setEditTablesOverlayOpen(true)}
+                >
+                  <FaTable />
+                  Edit Tables
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -831,6 +856,14 @@ const Assets = () => {
               }}
             />
           )}
+
+          {/* Edit Tables Overlay */}
+          <EditTablesOverlay
+            isOpen={editTablesOverlayOpen}
+            onClose={() => setEditTablesOverlayOpen(false)}
+            organizationId={organizationId}
+            onTablesUpdated={handleTablesUpdated}
+          />
         </div>
       </div>
     </div>

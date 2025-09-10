@@ -33,43 +33,43 @@ const CreateOrg = () => {
     // sign up the user
     try {
       const result = await signUpUser({ email, password });
-        if (result.error) {
-          throw result.error;
-        }
+      if (result.error) {
+        throw result.error;
+      }
 
-        const { data: orgData, error: orgError } = await supabase
-          .from("organization")
-          .insert({
-            name: orgName,
-            email: email,
-            owner_id: result.user.id,
-          })
-          .select()
-          .single();  
-        if (orgError || !orgData) {
-          alert("Failed to create organization: " + orgError?.message);
-          return;
-        }
+      const { data: orgData, error: orgError } = await supabase
+        .from("organization")
+        .insert({
+          name: orgName,
+          email: email,
+          owner_id: result.user.id,
+        })
+        .select()
+        .single();
+      if (orgError || !orgData) {
+        alert("Failed to create organization: " + orgError?.message);
+        return;
+      }
 
-        if (result.user) {
-          const { error } = await supabase.from("employee").insert({
-            employee_id: result.user.id,
-            email: email,
-            name: name,
-            role: "admin",
-            organization_id: orgData.org_id,
-          })
+      if (result.user) {
+        const { error } = await supabase.from("employee").insert({
+          employee_id: result.user.id,
+          email: email,
+          name: name,
+          role: "admin",
+          organization_id: orgData.org_id,
+        });
         if (error) {
           alert("Failed to create admin account: " + error.message);
           return;
         }
-    }
+      }
     } catch (error) {
       setError("Error signing up");
-      return alert("Something went wrong signing up.")
+      return alert("Something went wrong signing up.");
     } finally {
-      setLoading(false)
-    };
+      setLoading(false);
+    }
     // navigates user when everything goes to plan
     alert("Organization and admin account created!");
     navigate("/admin-dashboard");
