@@ -8,7 +8,9 @@ import CreateOrg from "./pages/CreateOrg";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import Tables from "./pages/Tables/Tables";
 import Orders from "./pages/Orders/Orders";
-import PublicOrderPage from "./pages/OrderPage";     
+import PublicOrderPage from "./pages/OrderPage";
+import CartPage from "./pages/CartPage";
+import OrdersHistoryPage from "./pages/OrdersHistoryPage";
 
 
 function App() {
@@ -25,6 +27,8 @@ function App() {
         <Route path="/tables" element={<Tables />} />
         <Route path="/tables/:tableId/orders" element={<Orders />} />
         <Route path="/order/:tableId" element={<PublicOrderPage />} />
+        <Route path="/order/:tableId/cart" element={<CartPage />} />
+        <Route path="/order/:tableId/orders" element={<OrdersHistoryPage />} />
       </Routes>
     </Router>
   );
