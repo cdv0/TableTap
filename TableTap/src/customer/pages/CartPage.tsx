@@ -72,52 +72,135 @@ export default function CartPage() {
 
   return (
     <div
-      className="mx-auto bg-white"
-      style={{ maxWidth: 480, minHeight: "100vh" }}
+      className="mx-auto"
+      style={{ 
+        maxWidth: 480, 
+        minHeight: "100vh", 
+        backgroundColor: "#F5F5F5",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      }}
     >
-      <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+      {/* Header with white background */}
+      <div 
+        className="d-flex justify-content-between align-items-center p-3"
+        style={{ 
+          backgroundColor: "white",
+          borderBottom: "1px solid #E0E0E0"
+        }}
+      >
         <button
           className="btn btn-link text-decoration-none"
           onClick={backToMenu}
+          style={{ color: "#333", fontSize: "18px" }}
         >
           ‹ Back
         </button>
-        <h5 className="m-0">Order Summary</h5>
+        <h5 
+          className="m-0" 
+          style={{ 
+            fontSize: "18px", 
+            fontWeight: "600", 
+            color: "#333" 
+          }}
+        >
+          Order Summary
+        </h5>
         <div style={{ width: 56 }} />
       </div>
 
-      <div className="p-3 vstack gap-2">
+      {/* White cart component */}
+      <div 
+        className="mx-3 mt-3"
+        style={{
+          backgroundColor: "white",
+          borderRadius: "12px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+          overflow: "hidden"
+        }}
+      >
         {items.length === 0 && (
-          <div className="text-center text-muted small py-4">
+          <div 
+            className="text-center py-4"
+            style={{ 
+              color: "#666",
+              fontSize: "16px",
+              padding: "40px 20px"
+            }}
+          >
             Cart is empty
           </div>
         )}
 
         {items.map((l, i) => (
-          <div key={l.id} className="border rounded p-2">
-            <div className="d-flex justify-content-between align-items-start">
-              <div>
-                <div className="small text-muted">#{i + 1}</div>
-                <div className="fw-semibold">{l.title}</div>
+          <div 
+            key={l.id} 
+            style={{
+              padding: "16px",
+              borderBottom: i < items.length - 1 ? "1px solid #E0E0E0" : "none"
+            }}
+          >
+            <div className="d-flex justify-content-between align-items-start mb-2">
+              <div style={{ flex: 1 }}>
+                <div 
+                  style={{ 
+                    fontSize: "14px", 
+                    color: "#666", 
+                    marginBottom: "4px" 
+                  }}
+                >
+                  {l.qty}
+                </div>
+                <div 
+                  style={{ 
+                    fontSize: "16px", 
+                    fontWeight: "600", 
+                    color: "#333",
+                    marginBottom: "4px"
+                  }}
+                >
+                  {l.title}
+                </div>
+                {l.meta && (
+                  <div style={{ fontSize: "14px", color: "#666", marginLeft: "8px" }}>
+                    {Object.entries(l.meta).map(([key, value]) => (
+                      <div key={key} style={{ fontSize: "12px", color: "#999" }}>
+                        {key}: {String(value)}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="fw-semibold">
+              <div 
+                style={{ 
+                  fontSize: "16px", 
+                  fontWeight: "500", 
+                  color: "#333",
+                  textAlign: "right"
+                }}
+              >
                 ${(l.unitPrice * l.qty).toFixed(2)}
               </div>
             </div>
-            <div className="d-flex justify-content-end gap-2 mt-2">
+            <div className="d-flex justify-content-end gap-2">
               <div className="btn-group btn-group-sm">
                 <button
                   className="btn btn-outline-secondary"
                   onClick={() => dec(l.id)}
+                  style={{ fontSize: "12px", padding: "4px 8px" }}
                 >
                   -
                 </button>
-                <button className="btn btn-light" disabled>
+                <button 
+                  className="btn btn-light" 
+                  disabled
+                  style={{ fontSize: "12px", padding: "4px 8px" }}
+                >
                   {l.qty}
                 </button>
                 <button
                   className="btn btn-outline-secondary"
                   onClick={() => inc(l.id)}
+                  style={{ fontSize: "12px", padding: "4px 8px" }}
                 >
                   +
                 </button>
@@ -125,6 +208,7 @@ export default function CartPage() {
               <button
                 className="btn btn-sm btn-outline-danger"
                 onClick={() => removeLine(l.id)}
+                style={{ fontSize: "12px", padding: "4px 8px" }}
               >
                 Remove
               </button>
@@ -134,36 +218,80 @@ export default function CartPage() {
 
         {items.length > 0 && (
           <>
-            <div className="mt-3 p-3 border rounded small">
-              <div className="d-flex justify-content-between">
+            {/* Order Summary Section */}
+            <div 
+              style={{
+                padding: "16px",
+                borderTop: "1px solid #E0E0E0",
+                backgroundColor: "white"
+              }}
+            >
+              <div 
+                className="d-flex justify-content-between mb-2"
+                style={{ fontSize: "14px", color: "#333" }}
+              >
                 <span>SUBTOTAL:</span>
                 <span>${subtotal.toFixed(2)}</span>
               </div>
-              <div className="d-flex justify-content-between">
+              <div 
+                className="d-flex justify-content-between mb-2"
+                style={{ fontSize: "14px", color: "#333" }}
+              >
                 <span>TAX (8.75%):</span>
                 <span>${tax.toFixed(2)}</span>
               </div>
-              <hr />
-              <div className="d-flex justify-content-between fw-semibold">
+              <div 
+                className="d-flex justify-content-between"
+                style={{ 
+                  fontSize: "16px", 
+                  fontWeight: "600", 
+                  color: "#333",
+                  paddingTop: "8px",
+                  borderTop: "1px solid #E0E0E0"
+                }}
+              >
                 <span>TOTAL:</span>
                 <span>${total.toFixed(2)}</span>
               </div>
             </div>
-
-            {err && (
-              <div className="text-danger small mt-2">Error: {err}</div>
-            )}
-
-            <button
-              className="btn btn-danger w-100 mt-3"
-              disabled={loading}
-              onClick={checkout}
-            >
-              {loading ? "Placing..." : "Place order"}
-            </button>
           </>
         )}
       </div>
+
+      {/* Place Order Button */}
+      {items.length > 0 && (
+        <div className="px-3 pb-3 mt-3">
+          {err && (
+            <div 
+              className="text-danger small mb-2" 
+              style={{ color: "#E74C3C", fontSize: "14px" }}
+            >
+              Error: {err}
+            </div>
+          )}
+
+          <button
+            className="btn"
+            disabled={loading}
+            onClick={checkout}
+            style={{
+              backgroundColor: "#E74C3C",
+              color: "white",
+              border: "none",
+              borderRadius: "25px",
+              padding: "12px 32px",
+              fontSize: "16px",
+              fontWeight: "600",
+              boxShadow: "0 2px 8px rgba(231, 76, 60, 0.3)",
+              width: "70%",
+              margin: "0 auto",
+              display: "block"
+            }}
+          >
+            {loading ? "Placing..." : "Place order"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,7 +20,7 @@ type OrderItem = {
   note: string | null;
 };
 
-type MenuRow = { item_id: string; title: string };
+type MenuRow = { item_id: string; name: string };
 
 export default function OrdersHistoryPage() {
   const { tableId } = useParams<{ tableId: string }>();
@@ -68,11 +68,11 @@ export default function OrdersHistoryPage() {
         if (itemIds.length) {
           const { data: menuRows, error: mErr } = await supabase
             .from("menu_items")
-            .select("item_id, title")
+            .select("item_id, name")
             .in("item_id", itemIds);
           if (mErr) throw mErr;
           const idx: Record<string, string> = {};
-          (menuRows as MenuRow[]).forEach(r => (idx[r.item_id] = r.title));
+          (menuRows as MenuRow[]).forEach(r => (idx[r.item_id] = r.name));
           setMenuIndex(idx);
         } else {
           setMenuIndex({});
@@ -98,74 +98,259 @@ export default function OrdersHistoryPage() {
   }, [items]);
 
   return (
-    <div className="mx-auto bg-white" style={{ maxWidth: 480, minHeight: "100vh" }}>
-      <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-        <button className="btn btn-link text-decoration-none" onClick={() => navigate(`/customer/order/${tableId}`)}>‹ Back</button>
-        <h5 className="m-0">Your Orders</h5>
-        <span style={{ width: 40 }} />
+    <div 
+      className="mx-auto" 
+      style={{ 
+        maxWidth: 480, 
+        minHeight: "100vh", 
+        backgroundColor: "#F5F5F5",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      }}
+    >
+      {/* Header with white background */}
+      <div 
+        className="d-flex justify-content-between align-items-center p-3"
+        style={{ 
+          backgroundColor: "white",
+          borderBottom: "1px solid #E0E0E0"
+        }}
+      >
+        <button 
+          className="btn btn-link text-decoration-none" 
+          onClick={() => navigate(`/customer/order/${tableId}`)}
+          style={{ color: "#333", fontSize: "18px" }}
+        >
+          ‹ Back
+        </button>
+        <h5 
+          className="m-0" 
+          style={{ 
+            fontSize: "18px", 
+            fontWeight: "600", 
+            color: "#333" 
+          }}
+        >
+          Your Orders
+        </h5>
+        <div style={{ width: 56 }} />
       </div>
 
       {loading && <div className="p-3 text-muted">Loading…</div>}
       {err && <div className="p-3 text-danger small">{err}</div>}
 
       {!loading && !err && (
-        <div className="p-3 vstack gap-3">
-          <div className="fw-semibold mb-2">Open orders ({orders.length})</div>
-
+        <div className="px-3 pb-4">
           {orders.length === 0 && (
-            <div className="text-muted small">No open orders for this table.</div>
+            <div 
+              className="mx-3 mt-4"
+              style={{
+                backgroundColor: "white",
+                borderRadius: "12px",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                overflow: "hidden"
+              }}
+            >
+              <div 
+                className="text-center py-4"
+                style={{ 
+                  color: "#666",
+                  fontSize: "16px",
+                  padding: "40px 20px"
+                }}
+              >
+                No open orders for this table.
+              </div>
+            </div>
           )}
 
-          {orders.map((o) => {
+          {orders.map((o, index) => {
             const bucket = itemsByOrder.get(o.order_id);
             const lines = bucket?.lines ?? [];
             const orderTotal = bucket?.total ?? 0;
+            const taxRate = 0.0875;
+            const tax = orderTotal * taxRate;
+            const total = orderTotal + tax;
 
             return (
-              <div key={o.order_id} className="border rounded">
-                <div className="d-flex justify-content-between align-items-start p-2 border-bottom">
-                  <div>
-                    <div className="small text-muted">Order #{o.order_id.slice(0, 6)}</div>
-                    <div className="small">{new Date(o.created_at).toLocaleString()}</div>
+              <div 
+                key={o.order_id} 
+                className="mx-3"
+                style={{
+                  backgroundColor: "white",
+                  borderRadius: "12px",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                  marginTop: index === 0 ? "16px" : "16px",
+                  marginBottom: index < orders.length - 1 ? "16px" : "0",
+                  overflow: "hidden"
+                }}
+              >
+                {/* Order header */}
+                <div 
+                  style={{
+                    padding: "16px",
+                    borderBottom: "1px solid #E0E0E0"
+                  }}
+                >
+                  <div 
+                    style={{ 
+                      fontSize: "18px", 
+                      fontWeight: "600", 
+                      color: "#000",
+                      marginBottom: "8px"
+                    }}
+                  >
+                    Order #{o.order_id.slice(0, 10)}
                   </div>
-                  <div className="text-end">
-                    <div className="badge text-bg-secondary">{o.status}</div>
-                    <div className="small text-muted">{o.item_count} items</div>
+                  <div 
+                    style={{ 
+                      fontSize: "14px", 
+                      color: "#666" 
+                    }}
+                  >
+                    {new Date(o.created_at).toLocaleString()}
                   </div>
                 </div>
 
-                {/* Items in this order */}
-                <div className="p-2">
+                {/* Order items */}
+                <div style={{ padding: "16px" }}>
                   {lines.length === 0 && (
-                    <div className="text-muted small">No items yet.</div>
+                    <div 
+                      style={{ 
+                        color: "#666", 
+                        fontSize: "14px",
+                        textAlign: "center",
+                        padding: "20px 0"
+                      }}
+                    >
+                      No items yet.
+                    </div>
                   )}
-                  {lines.map((it) => {
+                  
+                  {lines.map((it, index) => {
                     const title = it.item_id ? (menuIndex[it.item_id] ?? "Item") : "Item";
-                    const lineTotal = it.quantity * it.price_each;
+                    const status = o.status === "pending" ? "Pending" : 
+                                  o.status === "preparing" ? "Preparing" : 
+                                  o.status === "closed" ? "Served" : "Pending";
+                    
                     return (
-                      <div key={it.order_item_id} className="d-flex justify-content-between border-bottom py-2">
-                        <div>
-                          <div className="fw-semibold">{title}</div>
-                          <div className="small text-muted">
-                            Qty {it.quantity} × ${it.price_each.toFixed(2)}
-                            {it.note ? ` · ${it.note}` : ""}
+                      <div key={it.order_item_id}>
+                        <div 
+                          className="d-flex justify-content-between align-items-start"
+                          style={{ padding: "12px 0" }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div 
+                              style={{ 
+                                fontSize: "16px", 
+                                fontWeight: "600", 
+                                color: "#000",
+                                marginBottom: "4px"
+                              }}
+                            >
+                              {it.quantity} {title}
+                            </div>
+                            {it.note && (
+                              <div 
+                                style={{ 
+                                  fontSize: "12px", 
+                                  color: "#666",
+                                  marginLeft: "8px",
+                                  marginTop: "2px"
+                                }}
+                              >
+                                {it.note}
+                              </div>
+                            )}
+                          </div>
+                          <div 
+                            style={{ 
+                              fontSize: "14px", 
+                              color: "#666",
+                              fontWeight: "500"
+                            }}
+                          >
+                            {status}
                           </div>
                         </div>
-                        <div className="fw-semibold">${lineTotal.toFixed(2)}</div>
+                        {index < lines.length - 1 && (
+                          <div 
+                            style={{ 
+                              borderBottom: "1px solid #E0E0E0",
+                              margin: "0 -16px"
+                            }}
+                          />
+                        )}
                       </div>
                     );
                   })}
 
+                  {/* Order summary */}
                   {lines.length > 0 && (
-                    <div className="d-flex justify-content-between pt-2 fw-semibold">
-                      <span>Order total</span>
-                      <span>${orderTotal.toFixed(2)}</span>
+                    <div 
+                      style={{
+                        borderTop: "1px solid #E0E0E0",
+                        paddingTop: "16px",
+                        marginTop: "16px"
+                      }}
+                    >
+                      <div 
+                        className="d-flex justify-content-between mb-2"
+                        style={{ fontSize: "16px", color: "#000" }}
+                      >
+                        <span>SUBTOTAL:</span>
+                        <span>${orderTotal.toFixed(2)}</span>
+                      </div>
+                      <div 
+                        className="d-flex justify-content-between mb-2"
+                        style={{ fontSize: "16px", color: "#000" }}
+                      >
+                        <span>TAX (8.75%):</span>
+                        <span>${tax.toFixed(2)}</span>
+                      </div>
+                      <div 
+                        className="d-flex justify-content-between"
+                        style={{ 
+                          fontSize: "16px", 
+                          fontWeight: "600", 
+                          color: "#000",
+                          paddingTop: "8px",
+                          borderTop: "1px solid #E0E0E0"
+                        }}
+                      >
+                        <span>TOTAL:</span>
+                        <span>${total.toFixed(2)}</span>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             );
           })}
+
+          {/* Order more button */}
+          {orders.length > 0 && (
+            <div className="text-center mt-4">
+              <button
+                className="btn"
+                onClick={() => navigate(`/customer/order/${tableId}`)}
+                style={{
+                  backgroundColor: "#E74C3C",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "25px",
+                  padding: "12px 32px",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  boxShadow: "0 2px 8px rgba(231, 76, 60, 0.3)",
+                  width: "auto",
+                  margin: "0 auto",
+                  display: "block"
+                }}
+              >
+                Order more
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

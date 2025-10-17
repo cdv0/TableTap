@@ -114,114 +114,207 @@ export default function PublicOrderPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto bg-white" style={{ maxWidth: 480, minHeight: "100vh" }}>
-        <div className="p-3">Loading menu…</div>
+      <div className="mx-auto" style={{ maxWidth: 480, minHeight: "100vh", backgroundColor: "#F5F5F5", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+        <div className="p-3" style={{ color: "#666" }}>Loading menu…</div>
       </div>
     );
   }
   if (err) {
     return (
-      <div className="mx-auto bg-white" style={{ maxWidth: 480, minHeight: "100vh" }}>
+      <div className="mx-auto" style={{ maxWidth: 480, minHeight: "100vh", backgroundColor: "#F5F5F5", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
         <div className="alert alert-danger m-3">{err}</div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto bg-white" style={{ maxWidth: 480, minHeight: "100vh" }}>
-      {/* Sticky top navigation bar */}
-      <div className="d-flex align-items-center p-2 gap-2 border-bottom sticky-top bg-white" style={{ top: 0, zIndex: 10 }}>
-        <input
-          className="form-control"
-          placeholder="Search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search menu"
-        />
-        <button className="btn btn-light" title="Current order" onClick={() => navigate(`/customer/order/${tableId}/orders`)}>📖</button>
-        <button className="btn btn-light position-relative" title="Cart" onClick={openCart}>
-          🛒
-          {cartCount > 0 && (
-            <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger">
-              {cartCount}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* Category Tabs (now from DB) */}
-      <div
-        className="d-flex gap-2 px-2 py-2 border-bottom"
-        style={{ overflowX: "auto", whiteSpace: "nowrap", WebkitOverflowScrolling: "touch" }}
-        role="tablist"
-        aria-label="Menu categories"
+    <div className="mx-auto" style={{ maxWidth: 480, minHeight: "100vh", backgroundColor: "#F5F5F5", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
+      {/* White header component with search and categories */}
+      <div 
+        style={{
+          backgroundColor: "white",
+          borderBottom: "1px solid #E0E0E0"
+        }}
       >
-        {categories.map((cat) => {
-          const active = activeCat === cat;
-          return (
-            <button
-              key={cat}
-              role="tab"
-              aria-selected={active}
-              className={`btn btn-sm ${active ? "btn-danger text-white" : "btn-outline-secondary"}`}
-              style={{ flex: "0 0 auto" }}
-              onClick={() => setActiveCat(cat)}
+        {/* Search bar */}
+        <div 
+          className="px-3 mt-3"
+          style={{
+            paddingTop: "4px",
+            paddingBottom: "4px"
+          }}
+        >
+          <div className="d-flex align-items-center gap-2">
+            <div className="flex-grow-1 position-relative">
+              <input
+                className="form-control"
+                placeholder="Search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search menu"
+                style={{ 
+                  backgroundColor: "#E0E0E0", 
+                  border: "none", 
+                  borderRadius: "20px", 
+                  padding: "12px 16px",
+                  fontSize: "16px"
+                }}
+              />
+              <span className="position-absolute top-50 end-0 translate-middle-y me-3" style={{ color: "#666" }}>🔍</span>
+            </div>
+            <button 
+              className="btn btn-link p-2" 
+              title="Current order" 
+              onClick={() => navigate(`/customer/order/${tableId}/orders`)}
+              style={{ color: "#333", fontSize: "20px" }}
             >
-              {cat}
+              📖
             </button>
-          );
-        })}
+            <button 
+              className="btn btn-link p-2 position-relative" 
+              title="Cart" 
+              onClick={openCart}
+              style={{ color: "#333", fontSize: "20px" }}
+            >
+              🛒
+              {cartCount > 0 && (
+                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger" style={{ fontSize: "10px" }}>
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Category Tabs */}
+        <div
+          className="d-flex gap-2 px-3"
+          style={{ 
+            overflowX: "auto", 
+            whiteSpace: "nowrap", 
+            WebkitOverflowScrolling: "touch",
+            paddingTop: "8px",
+            paddingBottom: "8px"
+          }}
+          role="tablist"
+          aria-label="Menu categories"
+        >
+          {categories.map((cat) => {
+            const active = activeCat === cat;
+            return (
+              <button
+                key={cat}
+                role="tab"
+                aria-selected={active}
+                className="btn btn-sm"
+                style={{ 
+                  flex: "0 0 auto",
+                  backgroundColor: active ? "#FFC0CB" : "white",
+                  color: "#333",
+                  border: active ? "none" : "1px solid #E0E0E0",
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  fontSize: "14px",
+                  fontWeight: "500"
+                }}
+                onClick={() => setActiveCat(cat)}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Previous order banner */}
-      <button className="w-100 text-start border-0 bg-transparent px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
-        <span className="small">View your previous order</span>
-        <span aria-hidden>›</span>
-      </button>
 
       {/* Section title */}
-      <div className="px-3 pt-3 pb-2">
-        <h6 className="m-0">{activeCat}</h6>
+      <div className="px-3 pt-2 pb-2">
+        <h6 className="m-0" style={{ fontSize: "18px", fontWeight: "600", color: "#333" }}>{activeCat}</h6>
       </div>
 
       {/* Menu list */}
-      <div className="px-3 pb-4 vstack gap-2">
+      <div className="px-3 pb-4 vstack" style={{ gap: "10px" }}>
         {items.map((item) => (
-          <div key={item.id} className="border rounded d-flex p-2 align-items-start">
+          <div 
+            key={item.id} 
+            className="d-flex"
+            style={{ 
+              backgroundColor: "white", 
+              borderRadius: "12px", 
+              padding: "0",
+              border: "1px solid #E0E0E0",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              overflow: "hidden",
+              height: "100px"
+            }}
+            onClick={() => {
+              if (isPho(item.title)) {
+                setPhoOpen(true);
+              } else {
+                addSimpleItem(item);
+              }
+            }}
+          >
             <img
               src={item.img}
               alt={item.title}
-              width={80}
-              height={80}
-              className="me-2 rounded"
-              style={{ objectFit: "cover", background: "#f2f2f2" }}
+              style={{ 
+                objectFit: "cover", 
+                background: "#f2f2f2",
+                borderRadius: "12px 0 0 12px",
+                margin: "0",
+                flexShrink: "0",
+                height: "100%",
+                width: "100px"
+              }}
             />
-            <div className="flex-grow-1">
-              <div className="fw-semibold">{item.title}</div>
-              <div className="text-muted small">{item.desc}</div>
-              <div className="mt-1">${item.price.toFixed(2)}</div>
+            <div 
+              className="flex-grow-1"
+              style={{
+                padding: "16px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center"
+              }}
+            >
+              <div 
+                className="fw-semibold mb-1" 
+                style={{ 
+                  fontSize: "16px", 
+                  fontWeight: "600", 
+                  color: "#333",
+                  lineHeight: "1.3"
+                }}
+              >
+                {item.title}
+              </div>
+              <div 
+                className="text-muted mb-2" 
+                style={{ 
+                  fontSize: "14px", 
+                  color: "#666",
+                  lineHeight: "1.4"
+                }}
+              >
+                {item.desc}
+              </div>
+              <div 
+                style={{ 
+                  fontSize: "16px", 
+                  fontWeight: "500", 
+                  color: "#333"
+                }}
+              >
+                ${item.price.toFixed(2)}
+              </div>
             </div>
-
-            {isPho(item.title) ? (
-              <button
-                className="btn btn-outline-dark btn-sm ms-2"
-                onClick={() => setPhoOpen(true)}
-              >
-                Customize
-              </button>
-            ) : (
-              <button
-                className="btn btn-outline-dark btn-sm ms-2"
-                onClick={() => addSimpleItem(item)}
-              >
-                Add
-              </button>
-            )}
           </div>
         ))}
 
         {items.length === 0 && (
-          <div className="text-center text-muted small py-4">No items found.</div>
+          <div className="text-center text-muted small py-4" style={{ color: "#666" }}>No items found.</div>
         )}
       </div>
 
