@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { clearCart, loadCart, saveCart, type CartLine } from "../../shared/utils/cart";
-import { getTableIdByNumber, createCustomerOrder } from "../../shared/utils/ordersApi";
+import { getTableIdForCustomerOrder, createCustomerOrder } from "../../shared/utils/ordersApi";
 
 export default function CartPage() {
   const { tableId } = useParams<{ tableId: string }>();
@@ -25,13 +25,13 @@ export default function CartPage() {
 
   const inc = (id: string) =>
     setItems((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, qty: l.qty + 1 } : l))
+      prev.map((l) => (l.id === id ? { ...l, qty: l.qty + 1, meta: l.meta || { item_id: l.id } } : l))
     );
 
   const dec = (id: string) =>
     setItems((prev) =>
       prev
-        .map((l) => (l.id === id ? { ...l, qty: l.qty - 1 } : l))
+        .map((l) => (l.id === id ? { ...l, qty: l.qty - 1, meta: l.meta || { item_id: l.id } } : l))
         .filter((l) => l.qty > 0)
     );
 
@@ -46,8 +46,8 @@ export default function CartPage() {
       setLoading(true);
       setErr(null);
 
-      //map table number -> table_id (uuid)
-      const tableUuid = await getTableIdByNumber(Number(tableId));
+      //map table number -> table_id (uuid) - ensures order goes to target organization
+      const tableUuid = await getTableIdForCustomerOrder(Number(tableId));
 
       // insert order + items
       const order_id = await createCustomerOrder({

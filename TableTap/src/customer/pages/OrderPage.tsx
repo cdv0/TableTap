@@ -102,10 +102,20 @@ export default function PublicOrderPage() {
       const i = prev.findIndex(l => l.id === mi.id);
       if (i >= 0) {
         const next = [...prev];
-        next[i] = { ...next[i], qty: next[i].qty + 1 };
+        next[i] = { 
+          ...next[i], 
+          qty: next[i].qty + 1,
+          meta: { item_id: mi.id, ...next[i].meta }
+        };
         return next;
       }
-      return [...prev, { id: mi.id, title: mi.title, unitPrice: mi.price, qty: 1 }];
+      return [...prev, { 
+        id: mi.id, 
+        title: mi.title, 
+        unitPrice: mi.price, 
+        qty: 1,
+        meta: { item_id: mi.id }
+      }];
     });
   };
 
