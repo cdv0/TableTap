@@ -8,7 +8,7 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const navigate = useNavigate();
-  const { session, SignOutUser } = useAuth();
+  const { SignOutUser } = useAuth();
 
   const handleSignout = async (e: any) => {
     e.preventDefault();
@@ -75,6 +75,15 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 onClick={onClose}
               >
                 Assets
+              </Link>
+            </li>
+            <li className="mb-3 border-bottom pb-2">
+              <Link
+                to="/restaurant/qr-codes"
+                className="text-white text-decoration-none"
+                onClick={onClose}
+              >
+                QR Codes
               </Link>
             </li>
           </ul>

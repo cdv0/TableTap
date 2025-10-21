@@ -7,6 +7,7 @@ import Assets from "../restaurant/pages/Assets";
 import Tables from "../restaurant/pages/Tables/Tables";
 import Orders from "../restaurant/pages/Orders/Orders";
 import Catalog from "../restaurant/pages/Catalog/Catalog";
+import QRCodeGenerator from "../restaurant/pages/QRCodeGenerator";
 
 export function RestaurantRoutes() {
   return (
@@ -44,6 +45,11 @@ export function RestaurantRoutes() {
       <Route path="catalog" element={
         <PrivateRoute>
           <Catalog />
+        </PrivateRoute>
+      } />
+      <Route path="qr-codes" element={
+        <PrivateRoute>
+          <QRCodeGenerator />
         </PrivateRoute>
       } />
     </Routes>
