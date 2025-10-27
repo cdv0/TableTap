@@ -3,6 +3,27 @@ import { useNavigate, useParams } from "react-router-dom";
 import { clearCart, loadCart, saveCart, type CartLine } from "../../shared/utils/cart";
 import { getTableIdForCustomerOrder, createCustomerOrder } from "../../shared/utils/ordersApi";
 
+function renderMeta(meta: any) {
+  if (!meta) return null;
+
+  const parts: string[] = [];
+  if (meta.bowlSize) parts.push(`Bowl: ${meta.bowlSize}`);
+  if (meta.noodleSize) parts.push(`Noodles: ${meta.noodleSize}`);
+  if (meta.broth) parts.push(`Broth: ${meta.broth}`);
+  if (Array.isArray(meta.removed) && meta.removed.length) parts.push(`Removed: ${meta.removed.join(", ")}`);
+  if (Array.isArray(meta.substituted) && meta.substituted.length) parts.push(`Substituted: ${meta.substituted.join(", ")}`);
+  if (Array.isArray(meta.extraMeats) && meta.extraMeats.length)
+    parts.push(`Extra Meats: ${meta.extraMeats.map((m:any) => `${m.key} x${m.qty}`).join(", ")}`);
+  if (Array.isArray(meta.extras) && meta.extras.length)
+    parts.push(`Extras: ${meta.extras.map((m:any) => `${m.key} x${m.qty}`).join(", ")}`);
+  if (meta.notes) parts.push(`Notes: ${meta.notes}`);
+
+  // nothing human to show
+  if (parts.length === 0) return null;
+
+  return <div style={{ fontSize: 12, color: "#999", marginLeft: 8 }}>{parts.map((p, i) => <div key={i}>{p}</div>)}</div>;
+}
+
 export default function CartPage() {
   const { tableId } = useParams<{ tableId: string }>();
   const navigate = useNavigate();
@@ -24,15 +45,15 @@ export default function CartPage() {
   const total = subtotal + tax;
 
   const inc = (id: string) =>
-    setItems((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, qty: l.qty + 1, meta: l.meta || { item_id: l.id } } : l))
+    setItems(prev =>
+      prev.map(l => (l.id === id ? { ...l, qty: l.qty + 1 } : l))
     );
 
   const dec = (id: string) =>
-    setItems((prev) =>
+    setItems(prev =>
       prev
-        .map((l) => (l.id === id ? { ...l, qty: l.qty - 1, meta: l.meta || { item_id: l.id } } : l))
-        .filter((l) => l.qty > 0)
+        .map(l => (l.id === id ? { ...l, qty: l.qty - 1 } : l))
+        .filter(l => l.qty > 0)
     );
 
   const removeLine = (id: string) =>
@@ -160,15 +181,7 @@ export default function CartPage() {
                 >
                   {l.title}
                 </div>
-                {l.meta && (
-                  <div style={{ fontSize: "14px", color: "#666", marginLeft: "8px" }}>
-                    {Object.entries(l.meta).map(([key, value]) => (
-                      <div key={key} style={{ fontSize: "12px", color: "#999" }}>
-                        {key}: {String(value)}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {l.meta && renderMeta(l.meta)}
               </div>
               <div 
                 style={{ 

@@ -22,6 +22,8 @@ export default function PublicOrderPage() {
   const [activeCat, setActiveCat] = useState<string>("Popular");
   const [query, setQuery] = useState<string>("");
   const [phoOpen, setPhoOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+
 
   // Cart 
   const [cart, setCart] = useState<CartLine[]>(() => loadCart(tableId));
@@ -92,9 +94,29 @@ export default function PublicOrderPage() {
 
   // Add-to-cart
   const handlePhoAdd = (res: PhoResult) => {
-    const id = `pho-${Date.now()}`; // unique line per customization
-    setCart(prev => [...prev, { id, title: res.title, unitPrice: res.unitPrice, qty: res.qty, meta: res }]);
-    setPhoOpen(false);
+  if (!selectedItem) return;
+
+  const clientLineId =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `line-${Date.now()}`;
+
+  setCart(prev => [
+    ...prev,
+    {
+      id: clientLineId,                 // client-only id (NOT sent to DB)
+      title: selectedItem.title,
+      unitPrice: res.unitPrice,
+      qty: res.qty,
+      meta: {
+        ...res,
+        item_id: selectedItem.id,       // <-- REAL UUID for DB
+      },
+    },
+  ]);
+
+  setPhoOpen(false);
+  setSelectedItem(null);
   };
 
   const addSimpleItem = (mi: MenuItem) => {
@@ -261,6 +283,7 @@ export default function PublicOrderPage() {
             }}
             onClick={() => {
               if (isPho(item.title)) {
+                setSelectedItem(item);
                 setPhoOpen(true);
               } else {
                 addSimpleItem(item);
@@ -329,7 +352,20 @@ export default function PublicOrderPage() {
       </div>
 
       {/* Pho customization screen */}
-      <ItemAdjust open={phoOpen} onClose={() => setPhoOpen(false)} onAdd={handlePhoAdd} />
+      {selectedItem && (
+        <ItemAdjust
+          open={phoOpen}
+          onClose={() => {
+            setPhoOpen(false);
+            setSelectedItem(null); //clear on close
+    }}
+      onAdd={handlePhoAdd}
+      orgId={orgId}                       
+      menuItemId={selectedItem.id}        
+      baseTitle={selectedItem.title}      
+      basePrice={selectedItem.price}      
+  />
+)}
     </div>
   );
 }
