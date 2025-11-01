@@ -13,10 +13,10 @@ export type PhoResult = {
   bowlSize?: string;
   noodleSize?: string;
   broth?: string;
-  removed?: string[];                          // multi
-  substituted?: string[];                      // reserved
-  extraMeats?: { key: string; qty: number }[]; // keep shape, force qty=1
-  extras?: { key: string; qty: number }[];     // keep shape, force qty=1
+  removed?: string[];                          
+  substituted?: string[];                      
+  extraMeats?: { key: string; qty: number }[]; 
+  extras?: { key: string; qty: number }[];     
   notes?: string;
 };
 
@@ -40,9 +40,9 @@ export default function ItemAdjust(props: Props) {
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState("");
 
-  // single-select radios: groupId -> optionId
+  // single-select 
   const [singlePick, setSinglePick] = useState<Record<string, string | null>>({});
-  // multi-select checkboxes: groupId -> Set<optionId>
+  // multi-select checkboxes
   const [multiPick, setMultiPick] = useState<Record<string, Set<string>>>({});
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function ItemAdjust(props: Props) {
   const unitPrice = useMemo(() => basePrice, [basePrice]);
   const totalPrice = useMemo(() => unitPrice * qty, [unitPrice, qty]);
 
-  // Heuristics by group name (adjust to your exact names if you prefer)
+  // Order by group name
   const isPhoMeats = (name: string) => /pho\s*meats?/i.test(name);
   const isExtras   = (name: string) => /^extras?$/i.test(name) || /add-ons?/i.test(name);
   const isRemoved  = (name: string) => /removed?|no\s+/i.test(name);
@@ -111,7 +111,6 @@ export default function ItemAdjust(props: Props) {
     let noodleSize: string | undefined;
     let broth: string | undefined;
     let removed: string[] = [];
-    // IMPORTANT: keep the old shapes, but we’ll force qty = 1 and unique keys
     let extraMeats: { key: string; qty: number }[] = [];
     let extrasArr:  { key: string; qty: number }[] = [];
 
@@ -138,7 +137,7 @@ export default function ItemAdjust(props: Props) {
         .filter(Boolean) as string[];
 
       if (isPhoMeats(gname)) {
-        // No quantities allowed → emit qty:1 for each unique key
+        // No quantities allowed 
         const unique = Array.from(new Set(names));
         extraMeats = unique.map(n => ({ key: n, qty: 1 }));
       } else if (isExtras(gname)) {
@@ -147,7 +146,6 @@ export default function ItemAdjust(props: Props) {
       } else if (isRemoved(gname)) {
         removed = Array.from(new Set([...removed, ...names]));
       } else {
-        // Treat any other multi group as extras by default (qty:1)
         const unique = Array.from(new Set(names));
         extrasArr = Array.from(new Set([...extrasArr.map(e => e.key), ...unique])).map(n => ({ key: n, qty: 1 }));
       }
@@ -203,7 +201,7 @@ export default function ItemAdjust(props: Props) {
                 const opts = optionsByGroup[gid] ?? [];
                 const name = g.name ?? "";
                 const renderAsSingle = isSingle(name);
-                // IMPORTANT: meats & extras & removed = checkboxes (no +/-)
+                // meats & extras only checkbox
                 const renderAsMulti = !renderAsSingle;
 
                 return (

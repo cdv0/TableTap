@@ -28,21 +28,14 @@ function formatSelections(selections: Selection[] = []) {
     .join(" | ");
 }
 
-/**
- * Render cart line meta WITHOUT duplicating.
- * Priority:
- *   1) meta.selections (structured, non-pho).
- *   2) PHO legacy structured fields (bowlSize, removed, etc).
- *   3) Fallback: show meta.notes ONLY if nothing else exists (treated as summary).
- * In all cases, show user-entered note (userNote/note) as free-text only.
- */
+
 function renderMeta(meta: any) {
   if (!meta) return null;
 
-  // User-entered note field (not a generated summary)
+  // User-entered note field 
   const userNote = (meta.userNote ?? meta.note ?? "").toString().trim();
 
-  // 1) Non-pho: use structured selections
+  //Non-pho use structured selections
   if (Array.isArray(meta.selections) && meta.selections.length > 0) {
     const mods = formatSelections(meta.selections as Selection[]);
     if (!mods && !userNote) return null;
@@ -54,7 +47,7 @@ function renderMeta(meta: any) {
     );
   }
 
-  // 2) PHO legacy structured fields (no selections)
+  // PHO legacy structured fields (no selections)
   const parts: string[] = [];
   if (meta.bowlSize) parts.push(`Bowl: ${meta.bowlSize}`);
   if (meta.noodleSize) parts.push(`Noodles: ${meta.noodleSize}`);
@@ -85,7 +78,7 @@ function renderMeta(meta: any) {
     );
   }
 
-  // 3) Fallback only: if nothing else is available, show meta.notes (likely a prebuilt summary)
+  //  Fallback only: if nothing else is available, show meta.notes (summary)
   const summary = (meta.notes ?? "").toString().trim();
   if (!summary) return null;
   return (

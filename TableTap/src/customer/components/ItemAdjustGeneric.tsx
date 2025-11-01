@@ -34,7 +34,7 @@ export default function ItemAdjustGeneric(props: Props) {
   const [groups, setGroups] = useState<DbModifierGroup[]>([]);
   const [optionsByGroup, setOptionsByGroup] = useState<Record<string, DbModifier[]>>({});
 
-  // All groups are 0..N picks via checkbox
+  // All groups are 0 to many modifiers 
   const [multi, setMulti] = useState<Record<string, Set<string>>>({});
   const [qtyMap, setQtyMap] = useState<Record<string, number>>({});
   const [qty, setQty] = useState(1);

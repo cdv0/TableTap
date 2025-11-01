@@ -46,7 +46,6 @@ export async function getTableIdForCustomerOrder(tableNumber: number) {
 }
 
 // Note for employee screen to see modifiers 
-// Replace the whole buildLineNote with this:
 function buildLineNote(meta: any): string | null {
   if (!meta) return null;
 
@@ -54,7 +53,6 @@ function buildLineNote(meta: any): string | null {
 
   // --- Generic selections (non-Pho) ---
   if (Array.isArray(meta.selections) && meta.selections.length) {
-    // groupName -> optionName -> qty sum
     const byGroup = new Map<string, Map<string, number>>();
     for (const s of meta.selections as Array<{ groupName: string; options: Array<{ name: string; qty: number }> }>) {
       const gname = s.groupName ?? "Options";
@@ -74,8 +72,7 @@ function buildLineNote(meta: any): string | null {
       if (line) parts.push(`${gname}: ${line}`);
     }
   }
-
-  // --- Pho legacy fields (unchanged) ---
+  // Pho Selections
   if (meta.bowlSize) parts.push(`Bowl: ${meta.bowlSize}`);
   if (meta.noodleSize) parts.push(`Noodles: ${meta.noodleSize}`);
   if (meta.broth) parts.push(`Broth: ${meta.broth}`);
@@ -97,7 +94,7 @@ function buildLineNote(meta: any): string | null {
     if (ex) parts.push(`Extras: ${ex}`);
   }
 
-  // --- Only actual free text from the user ---
+  // Additional notes
   const userNote = (meta.userNote ?? meta.note ?? "").toString().trim();
   if (userNote) parts.push(userNote); // no "Notes:" prefix here
 
