@@ -17,10 +17,148 @@ type OrderItem = {
   item_id: string | null;
   quantity: number;
   price_each: number;
-  note: string | null;
+  note: string | null; // may be plain text OR JSON meta
 };
 
 type MenuRow = { item_id: string; name: string };
+
+/* -------------------- Helpers (no duplicates, no labels) -------------------- */
+
+type OptionWithQty = { id: string; name: string; qty: number };
+type Selection = { groupId: string; groupName: string; options: OptionWithQty[] };
+
+function tryParseJSON(s: string | null) {
+  if (!s) return null;
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}
+
+const stripNotesPrefix = (s?: string) =>
+  (s ?? "").replace(/^\s*notes:\s*/i, "").trim();
+
+/** Strip "Notes:" from EACH segment, normalize whitespace, then de-dupe (case-insensitive). */
+function dedupeBarSeparatedFlexible(s: string) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  s.split("|").forEach(part => {
+    const clean = stripNotesPrefix(part).replace(/\s+/g, " ").trim();
+    const key = clean.toLowerCase();
+    if (clean && !seen.has(key)) {
+      seen.add(key);
+      out.push(clean);
+    }
+  });
+  return out.join(" | ");
+}
+
+/** Combine + de-dupe selections: groupName -> optionName -> qty */
+function formatSelections(selections: Selection[] = []) {
+  const byGroup = new Map<string, Map<string, number>>();
+  for (const s of selections) {
+    const g = byGroup.get(s.groupName) ?? new Map<string, number>();
+    for (const o of s.options) {
+      const q = Math.max(1, Number(o.qty ?? 1));
+      g.set(o.name, (g.get(o.name) ?? 0) + q);
+    }
+    byGroup.set(s.groupName, g);
+  }
+  const line = Array.from(byGroup.entries())
+    .map(([group, opts]) => {
+      const options = Array.from(opts.entries())
+        .map(([name, q]) => (q > 1 ? `${name} x${q}` : name))
+        .join(", ");
+      return `${group}: ${options}`;
+    })
+    .join(" | ");
+
+  return dedupeBarSeparatedFlexible(line);
+}
+
+/**
+ * Render a single order item's note consistently for the **customer UI**:
+ *  - JSON meta: use selections (non-PHO) OR legacy PHO fields; userNote/note as free text.
+ *  - Plain text: strip per-segment "Notes:" and de-dupe.
+ *  - IMPORTANT: No visible "Notes:" or "Note:" labels are added here.
+ *  - Storage is untouched; employee side receives original value.
+ */
+function renderOrderItemNote(note: string | null) {
+  if (!note) return null;
+
+  const obj = tryParseJSON(note);
+
+  // JSON meta saved into order_items.note
+  if (obj && typeof obj === "object") {
+    const lines: string[] = [];
+
+    if (Array.isArray(obj.selections) && obj.selections.length > 0) {
+      const mods = formatSelections(obj.selections as Selection[]);
+      if (mods) lines.push(mods);
+    } else {
+      // Legacy PHO fields
+      const parts: string[] = [];
+      if (obj.bowlSize) parts.push(`Bowl: ${obj.bowlSize}`);
+      if (obj.noodleSize) parts.push(`Noodles: ${obj.noodleSize}`);
+      if (obj.broth) parts.push(`Broth: ${obj.broth}`);
+      if (Array.isArray(obj.removed) && obj.removed.length)
+        parts.push(`Removed: ${obj.removed.join(", ")}`);
+      if (Array.isArray(obj.substituted) && obj.substituted.length)
+        parts.push(`Substituted: ${obj.substituted.join(", ")}`);
+      if (Array.isArray(obj.extraMeats) && obj.extraMeats.length)
+        parts.push(
+        `Pho Meats: ${obj.extraMeats
+          .map((m: any) => (typeof m === "string" ? m : `${m.key}${m.qty && m.qty > 1 ? ` x${m.qty}` : ""}`))
+          .join(", ")}`
+      );
+      if (Array.isArray(obj.extras) && obj.extras.length)
+        parts.push(
+          `Extras: ${obj.extras.map((m: any) => `${m.key} x${m.qty}`).join(", ")}`
+        );
+      if (parts.length) lines.push(parts.join(" | "));
+    }
+
+    // Free-text user note (never a summary). Strip any embedded "Notes:".
+    const userNote = stripNotesPrefix(obj.userNote ?? obj.note);
+
+    // Compose + de-dupe (no labels shown)
+    const final = dedupeBarSeparatedFlexible(lines.filter(Boolean).join(" | "));
+    const textOnly = dedupeBarSeparatedFlexible([final, userNote].filter(Boolean).join(" | "));
+
+     const linesArr = (textOnly ?? "")
+      .split("|")
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (linesArr.length === 0) return null;
+
+    return (
+      <div style={{ fontSize: 12, color: "#666", marginLeft: 8, marginTop: 2 }}>
+        {linesArr.map((ln, i) => (
+          <div key={i}>{ln}</div>
+        ))}
+      </div>
+    );
+  }
+
+  // Plain text path
+  const cleaned = dedupeBarSeparatedFlexible(note);
+  const linesArr = (cleaned ?? "")
+    .split("|")
+    .map(s => s.trim())
+    .filter(Boolean);
+  if (linesArr.length === 0) return null;
+
+  return (
+    <div style={{ fontSize: 12, color: "#666", marginLeft: 8, marginTop: 2 }}>
+      {linesArr.map((ln, i) => (
+        <div key={i}>{ln}</div>
+      ))}
+    </div>
+  );
+}
+
+/* -------------------- Page -------------------- */
 
 export default function OrdersHistoryPage() {
   const { tableId } = useParams<{ tableId: string }>();
@@ -38,7 +176,7 @@ export default function OrdersHistoryPage() {
         setLoading(true);
         setErr(null);
 
-        //Open orders for this table 
+        // Open orders for this table
         const { data: openOrders, error: oErr } = await supabase
           .from("open_orders_with_items")
           .select("order_id, table_id, status, created_at, item_count, table_number")
@@ -53,7 +191,7 @@ export default function OrdersHistoryPage() {
           return;
         }
 
-        //Items for orders
+        // Items for orders
         const { data: orderItems, error: iErr } = await supabase
           .from("order_items")
           .select("order_item_id, order_id, item_id, quantity, price_each, note")
@@ -61,7 +199,7 @@ export default function OrdersHistoryPage() {
         if (iErr) throw iErr;
         setItems((orderItems ?? []) as OrderItem[]);
 
-        // C) Menu titles (optional, for nicer display)
+        // Menu titles
         const itemIds = Array.from(
           new Set((orderItems ?? []).map(i => i.item_id).filter(Boolean) as string[])
         );
@@ -98,37 +236,31 @@ export default function OrdersHistoryPage() {
   }, [items]);
 
   return (
-    <div 
-      className="mx-auto" 
-      style={{ 
-        maxWidth: 480, 
-        minHeight: "100vh", 
+    <div
+      className="mx-auto"
+      style={{
+        maxWidth: 480,
+        minHeight: "100vh",
         backgroundColor: "#F5F5F5",
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+        fontFamily:
+          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
     >
-      {/* Header with white background */}
-      <div 
+      {/* Header */}
+      <div
         className="d-flex justify-content-between align-items-center p-3"
-        style={{ 
-          backgroundColor: "white",
-          borderBottom: "1px solid #E0E0E0"
-        }}
+        style={{ backgroundColor: "white", borderBottom: "1px solid #E0E0E0" }}
       >
-        <button 
-          className="btn btn-link text-decoration-none" 
+        <button
+          className="btn btn-link text-decoration-none"
           onClick={() => navigate(`/customer/order/${tableId}`)}
           style={{ color: "#333", fontSize: "18px" }}
         >
           ‹ Back
         </button>
-        <h5 
-          className="m-0" 
-          style={{ 
-            fontSize: "18px", 
-            fontWeight: "600", 
-            color: "#333" 
-          }}
+        <h5
+          className="m-0"
+          style={{ fontSize: "18px", fontWeight: 600, color: "#333" }}
         >
           Your Orders
         </h5>
@@ -141,22 +273,18 @@ export default function OrdersHistoryPage() {
       {!loading && !err && (
         <div className="px-3 pb-4">
           {orders.length === 0 && (
-            <div 
+            <div
               className="mx-3 mt-4"
               style={{
                 backgroundColor: "white",
                 borderRadius: "12px",
                 boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                overflow: "hidden"
+                overflow: "hidden",
               }}
             >
-              <div 
+              <div
                 className="text-center py-4"
-                style={{ 
-                  color: "#666",
-                  fontSize: "16px",
-                  padding: "40px 20px"
-                }}
+                style={{ color: "#666", fontSize: "16px", padding: "40px 20px" }}
               >
                 No open orders for this table.
               </div>
@@ -172,41 +300,36 @@ export default function OrdersHistoryPage() {
             const total = orderTotal + tax;
 
             return (
-              <div 
-                key={o.order_id} 
+              <div
+                key={o.order_id}
                 className="mx-3"
                 style={{
                   backgroundColor: "white",
                   borderRadius: "12px",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                  marginTop: index === 0 ? "16px" : "16px",
+                  marginTop: "16px",
                   marginBottom: index < orders.length - 1 ? "16px" : "0",
-                  overflow: "hidden"
+                  overflow: "hidden",
                 }}
               >
                 {/* Order header */}
-                <div 
+                <div
                   style={{
                     padding: "16px",
-                    borderBottom: "1px solid #E0E0E0"
+                    borderBottom: "1px solid #E0E0E0",
                   }}
                 >
-                  <div 
-                    style={{ 
-                      fontSize: "18px", 
-                      fontWeight: "600", 
+                  <div
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: 600,
                       color: "#000",
-                      marginBottom: "8px"
+                      marginBottom: 8,
                     }}
                   >
                     Order #{o.order_id.slice(0, 10)}
                   </div>
-                  <div 
-                    style={{ 
-                      fontSize: "14px", 
-                      color: "#666" 
-                    }}
-                  >
+                  <div style={{ fontSize: "14px", color: "#666" }}>
                     {new Date(o.created_at).toLocaleString()}
                   </div>
                 </div>
@@ -214,69 +337,63 @@ export default function OrdersHistoryPage() {
                 {/* Order items */}
                 <div style={{ padding: "16px" }}>
                   {lines.length === 0 && (
-                    <div 
-                      style={{ 
-                        color: "#666", 
+                    <div
+                      style={{
+                        color: "#666",
                         fontSize: "14px",
                         textAlign: "center",
-                        padding: "20px 0"
+                        padding: "20px 0",
                       }}
                     >
                       No items yet.
                     </div>
                   )}
-                  
-                  {lines.map((it, index) => {
+
+                  {lines.map((it, idx) => {
                     const title = it.item_id ? (menuIndex[it.item_id] ?? "Item") : "Item";
-                    const status = o.status === "pending" ? "Pending" : 
-                                  o.status === "preparing" ? "Preparing" : 
-                                  o.status === "closed" ? "Served" : "Pending";
-                    
+                    const status =
+                      o.status === "pending"
+                        ? "Pending"
+                        : o.status === "preparing"
+                        ? "Preparing"
+                        : o.status === "closed"
+                        ? "Served"
+                        : "Pending";
+
                     return (
                       <div key={it.order_item_id}>
-                        <div 
+                        <div
                           className="d-flex justify-content-between align-items-start"
                           style={{ padding: "12px 0" }}
                         >
                           <div style={{ flex: 1 }}>
-                            <div 
-                              style={{ 
-                                fontSize: "16px", 
-                                fontWeight: "600", 
+                            <div
+                              style={{
+                                fontSize: 16,
+                                fontWeight: 600,
                                 color: "#000",
-                                marginBottom: "4px"
+                                marginBottom: 4,
                               }}
                             >
                               {it.quantity} {title}
                             </div>
-                            {it.note && (
-                              <div 
-                                style={{ 
-                                  fontSize: "12px", 
-                                  color: "#666",
-                                  marginLeft: "8px",
-                                  marginTop: "2px"
-                                }}
-                              >
-                                {it.note}
-                              </div>
-                            )}
+                            {renderOrderItemNote(it.note)}
                           </div>
-                          <div 
-                            style={{ 
-                              fontSize: "14px", 
+                          <div
+                            style={{
+                              fontSize: 14,
                               color: "#666",
-                              fontWeight: "500"
+                              fontWeight: 500,
                             }}
                           >
                             {status}
                           </div>
                         </div>
-                        {index < lines.length - 1 && (
-                          <div 
-                            style={{ 
+                        {idx < lines.length - 1 && (
+                          <div
+                            style={{
                               borderBottom: "1px solid #E0E0E0",
-                              margin: "0 -16px"
+                              margin: "0 -16px",
                             }}
                           />
                         )}
@@ -286,35 +403,35 @@ export default function OrdersHistoryPage() {
 
                   {/* Order summary */}
                   {lines.length > 0 && (
-                    <div 
+                    <div
                       style={{
                         borderTop: "1px solid #E0E0E0",
-                        paddingTop: "16px",
-                        marginTop: "16px"
+                        paddingTop: 16,
+                        marginTop: 16,
                       }}
                     >
-                      <div 
+                      <div
                         className="d-flex justify-content-between mb-2"
-                        style={{ fontSize: "16px", color: "#000" }}
+                        style={{ fontSize: 16, color: "#000" }}
                       >
                         <span>SUBTOTAL:</span>
                         <span>${orderTotal.toFixed(2)}</span>
                       </div>
-                      <div 
+                      <div
                         className="d-flex justify-content-between mb-2"
-                        style={{ fontSize: "16px", color: "#000" }}
+                        style={{ fontSize: 16, color: "#000" }}
                       >
                         <span>TAX (8.75%):</span>
                         <span>${tax.toFixed(2)}</span>
                       </div>
-                      <div 
+                      <div
                         className="d-flex justify-content-between"
-                        style={{ 
-                          fontSize: "16px", 
-                          fontWeight: "600", 
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 600,
                           color: "#000",
-                          paddingTop: "8px",
-                          borderTop: "1px solid #E0E0E0"
+                          paddingTop: 8,
+                          borderTop: "1px solid #E0E0E0",
                         }}
                       >
                         <span>TOTAL:</span>
@@ -340,11 +457,11 @@ export default function OrdersHistoryPage() {
                   borderRadius: "25px",
                   padding: "12px 32px",
                   fontSize: "16px",
-                  fontWeight: "600",
+                  fontWeight: 600,
                   boxShadow: "0 2px 8px rgba(231, 76, 60, 0.3)",
                   width: "auto",
                   margin: "0 auto",
-                  display: "block"
+                  display: "block",
                 }}
               >
                 Order more

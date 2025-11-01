@@ -45,6 +45,67 @@ export async function getTableIdForCustomerOrder(tableNumber: number) {
   return data.table_id as string;
 }
 
+// Note for employee screen to see modifiers 
+// Replace the whole buildLineNote with this:
+function buildLineNote(meta: any): string | null {
+  if (!meta) return null;
+
+  const parts: string[] = [];
+
+  // --- Generic selections (non-Pho) ---
+  if (Array.isArray(meta.selections) && meta.selections.length) {
+    // groupName -> optionName -> qty sum
+    const byGroup = new Map<string, Map<string, number>>();
+    for (const s of meta.selections as Array<{ groupName: string; options: Array<{ name: string; qty: number }> }>) {
+      const gname = s.groupName ?? "Options";
+      const g = byGroup.get(gname) ?? new Map<string, number>();
+      for (const o of s.options ?? []) {
+        const name = (o?.name ?? "").toString();
+        if (!name) continue;
+        const q = Math.max(1, Number(o?.qty ?? 1));
+        g.set(name, (g.get(name) ?? 0) + q);
+      }
+      byGroup.set(gname, g);
+    }
+    for (const [gname, opts] of byGroup.entries()) {
+      const line = Array.from(opts.entries())
+        .map(([name, q]) => (q > 1 ? `${name} x${q}` : name)) // hide x1
+        .join(", ");
+      if (line) parts.push(`${gname}: ${line}`);
+    }
+  }
+
+  // --- Pho legacy fields (unchanged) ---
+  if (meta.bowlSize) parts.push(`Bowl: ${meta.bowlSize}`);
+  if (meta.noodleSize) parts.push(`Noodles: ${meta.noodleSize}`);
+  if (meta.broth) parts.push(`Broth: ${meta.broth}`);
+  if (Array.isArray(meta.removed) && meta.removed.length) parts.push(`Removed: ${meta.removed.join(", ")}`);
+  if (Array.isArray(meta.substituted) && meta.substituted.length) parts.push(`Substituted: ${meta.substituted.join(", ")}`);
+
+  const listToText = (list: any[]) =>
+    list
+      .map((m: any) => (typeof m === "string" ? m : (m?.key ?? "") + (m?.qty && m.qty > 1 ? ` x${m.qty}` : "")))
+      .filter(Boolean)
+      .join(", ");
+
+  if (Array.isArray(meta.extraMeats) && meta.extraMeats.length) {
+    const meats = listToText(meta.extraMeats);
+    if (meats) parts.push(`Pho Meats: ${meats}`);
+  }
+  if (Array.isArray(meta.extras) && meta.extras.length) {
+    const ex = listToText(meta.extras);
+    if (ex) parts.push(`Extras: ${ex}`);
+  }
+
+  // --- Only actual free text from the user ---
+  const userNote = (meta.userNote ?? meta.note ?? "").toString().trim();
+  if (userNote) parts.push(userNote); // no "Notes:" prefix here
+
+  const line = parts.map(s => s.trim()).filter(Boolean).join(" | ");
+  return line || null;
+}
+
+
 export async function createCustomerOrder(params: {
   table_id: string;
   status?: "pending" | "preparing" | "closed";
@@ -72,12 +133,14 @@ export async function createCustomerOrder(params: {
       if (!item_id) {
         throw new Error(`Cart line "${l.title}" is missing meta.item_id`);
       }
+      // Put modifiers into the note 
+      const lineNote = buildLineNote(l.meta);
       return {
         order_id,
         item_id,
         quantity: l.qty,
         price_each: l.unitPrice,
-        note: l.meta?.notes ?? null,
+        note: lineNote,
       };
     });
 

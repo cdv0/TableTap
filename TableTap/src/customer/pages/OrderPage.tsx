@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ItemAdjust from "../components/ItemAdjust";
 import type { PhoResult } from "../components/ItemAdjust";
+import ItemCustomize from "../components/ItemAdjustGeneric";
+import type { GenericAdjustResult } from "../components/ItemAdjustGeneric";
 import { loadCart, saveCart, type CartLine } from "../../shared/utils/cart";
 import { fetchCategories, fetchItems } from "../../shared/services/assets";
 
@@ -24,6 +26,9 @@ export default function PublicOrderPage() {
   const [phoOpen, setPhoOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
 
+  // generic adjuster state (for non-Pho)
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customItem, setCustomItem] = useState<MenuItem | null>(null);
 
   // Cart 
   const [cart, setCart] = useState<CartLine[]>(() => loadCart(tableId));
@@ -49,23 +54,22 @@ export default function PublicOrderPage() {
         ]);
         if (!alive) return;
 
-        const catMap = new Map(cats.map(c => [c.category_id, c.name]));
-        const catNames = cats.map(c => c.name);
+        const catMap = new Map(cats.map((c: any) => [c.category_id, c.name]));
+        const catNames = cats.map((c: any) => c.name);
 
-        // keep “Popular” default if present
         const initial =
-          catNames.find(n => n.toLowerCase() === "popular") ??
+          catNames.find((n: string) => n.toLowerCase() === "popular") ??
           catNames[0] ??
           "Popular";
 
         const normalized: MenuItem[] = (items ?? [])
-          .filter(i => i.is_addon !== true) // hide add-ons from the main listing
-          .map(i => ({
+          .filter((i: any) => i.is_addon !== true)
+          .map((i: any) => ({
             id: i.item_id,
             title: i.name,
             desc: i.description ?? "",
             price: Number(i.price ?? 0),
-            img: "/placeholder.png", // set to real image when available
+            img: "/placeholder.png",
             category: catMap.get(i.category_id) ?? "Uncategorized",
           }));
 
@@ -82,7 +86,7 @@ export default function PublicOrderPage() {
     return () => { alive = false; };
   }, [orgId]);
 
-  // Filter items (unchanged)
+  // Filter items
   const items = useMemo(() => {
     const base = menu.filter(
       (m) => m.category === activeCat || (activeCat === "Popular" && m.category === "Popular")
@@ -92,53 +96,91 @@ export default function PublicOrderPage() {
     return base.filter((m) => m.title.toLowerCase().includes(q) || m.desc.toLowerCase().includes(q));
   }, [menu, activeCat, query]);
 
-  // Add-to-cart
+  // Build a compact note string from generic selections
+  function selectionsToNote(
+    selections: GenericAdjustResult["selections"],
+    extraNote?: string | undefined
+  ) {
+    const body = selections
+      .map(s =>
+        `${s.groupName}: ${s.options
+          .map(o => (o.qty && o.qty > 1 ? `${o.name} x${o.qty}` : o.name))
+          .join(", ")}`
+      )
+      .join(" | ");
+    const parts = [body, extraNote?.trim()].filter(Boolean);
+    return parts.length ? parts.join(" | ") : null;
+  }
+
+  // Add-to-cart (Pho)
   const handlePhoAdd = (res: PhoResult) => {
-  if (!selectedItem) return;
+    if (!selectedItem) return;
 
-  const clientLineId =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `line-${Date.now()}`;
+    const clientLineId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `line-${Date.now()}`;
 
-  setCart(prev => [
-    ...prev,
-    {
-      id: clientLineId,                 // client-only id (NOT sent to DB)
-      title: selectedItem.title,
-      unitPrice: res.unitPrice,
-      qty: res.qty,
-      meta: {
-        ...res,
-        item_id: selectedItem.id,       // <-- REAL UUID for DB
+    // optional: mirror the same note style so it shows nicely in history/employee views
+    const parts: string[] = [];
+    if ((res as any).bowlSize) parts.push(`Bowl: ${(res as any).bowlSize}`);
+    if ((res as any).noodleSize) parts.push(`Noodles: ${(res as any).noodleSize}`);
+    if ((res as any).broth) parts.push(`Broth: ${(res as any).broth}`);
+    if (Array.isArray((res as any).removed) && (res as any).removed.length) parts.push(`Removed: ${(res as any).removed.join(", ")}`);
+    if (Array.isArray((res as any).substituted) && (res as any).substituted.length) parts.push(`Substituted: ${(res as any).substituted.join(", ")}`);
+    if (Array.isArray((res as any).extraMeats) && (res as any).extraMeats.length) parts.push(`Extra Meats: ${(res as any).extraMeats.map((m:any)=>`${m.key} x${m.qty}`).join(", ")}`);
+    if (Array.isArray((res as any).extras) && (res as any).extras.length) parts.push(`Extras: ${(res as any).extras.map((m:any)=>`${m.key} x${m.qty}`).join(", ")}`);
+    if ((res as any).notes) parts.push(`Notes: ${(res as any).notes}`);
+    const phoNote = parts.length ? parts.join(" | ") : null;
+
+    setCart(prev => [
+      ...prev,
+      {
+        id: clientLineId,
+        title: selectedItem.title,
+        unitPrice: res.unitPrice,
+        qty: res.qty,
+        meta: {
+          ...res,
+          item_id: selectedItem.id,            // for DB
+          userNote: (res as any).notes || undefined, 
+        },
       },
-    },
-  ]);
+    ]);
 
-  setPhoOpen(false);
-  setSelectedItem(null);
+
+    setPhoOpen(false);
+    setSelectedItem(null);
   };
 
-  const addSimpleItem = (mi: MenuItem) => {
-    setCart(prev => {
-      const i = prev.findIndex(l => l.id === mi.id);
-      if (i >= 0) {
-        const next = [...prev];
-        next[i] = { 
-          ...next[i], 
-          qty: next[i].qty + 1,
-          meta: { item_id: mi.id, ...next[i].meta }
-        };
-        return next;
-      }
-      return [...prev, { 
-        id: mi.id, 
-        title: mi.title, 
-        unitPrice: mi.price, 
-        qty: 1,
-        meta: { item_id: mi.id }
-      }];
-    });
+  // Add-to-cart (generic for non-Pho)
+  const handleGenericAdd = (res: GenericAdjustResult) => {
+    if (!customItem) return;
+
+    const clientLineId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `line-${Date.now()}`;
+
+    const lineNote = selectionsToNote(res.selections, res.notes);
+
+    setCart(prev => [
+      ...prev,
+      {
+        id: clientLineId,
+        title: customItem.title,
+        unitPrice: res.unitPrice,
+        qty: res.qty,
+        meta: {
+          item_id: customItem.id,       // for DB
+          selections: res.selections,   // client-side only
+          notes: lineNote ?? undefined, // persisted to order_items.note
+        },
+      },
+    ]);
+
+    setCustomOpen(false);
+    setCustomItem(null);
   };
 
   const openCart = () => navigate(`/customer/order/${tableId}/cart`);
@@ -258,7 +300,6 @@ export default function PublicOrderPage() {
         </div>
       </div>
 
-
       {/* Section title */}
       <div className="px-3 pt-2 pb-2">
         <h6 className="m-0" style={{ fontSize: "18px", fontWeight: "600", color: "#333" }}>{activeCat}</h6>
@@ -286,7 +327,8 @@ export default function PublicOrderPage() {
                 setSelectedItem(item);
                 setPhoOpen(true);
               } else {
-                addSimpleItem(item);
+                setCustomItem(item);  // open generic adjuster for non-Pho
+                setCustomOpen(true);
               }
             }}
           >
@@ -357,15 +399,28 @@ export default function PublicOrderPage() {
           open={phoOpen}
           onClose={() => {
             setPhoOpen(false);
-            setSelectedItem(null); //clear on close
-    }}
-      onAdd={handlePhoAdd}
-      orgId={orgId}                       
-      menuItemId={selectedItem.id}        
-      baseTitle={selectedItem.title}      
-      basePrice={selectedItem.price}      
-  />
-)}
+            setSelectedItem(null);
+          }}
+          onAdd={handlePhoAdd}
+          orgId={orgId}
+          menuItemId={selectedItem.id}
+          baseTitle={selectedItem.title}
+          basePrice={selectedItem.price}
+        />
+      )}
+
+      {/* Generic customization screen (non-Pho) */}
+      {customItem && (
+        <ItemCustomize
+          open={customOpen}
+          onClose={() => { setCustomOpen(false); setCustomItem(null); }}
+          onAdd={handleGenericAdd}
+          orgId={orgId}
+          menuItemId={customItem.id}
+          baseTitle={customItem.title}
+          basePrice={customItem.price}
+        />
+      )}
     </div>
   );
 }
